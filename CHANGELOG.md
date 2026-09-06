@@ -18,6 +18,8 @@ and this project adheres to the
   union).
 - Library abstractions unfold in the refiner.
 - Example theory `examples/cardinality.nuprl` (Constable et al. §11.3).
+- Integer induction term `ind(n; x,ih.down; base; y,jh.up)` and `decide a < b`.
+- Example theory `examples/denotational.nuprl` (Constable et al. §11.6).
 
 ## 0.1.0.0 - 2026-09-06
 

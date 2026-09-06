@@ -211,6 +211,26 @@ prettyTermPrec prec t = case t of
         <+> prettyTermPrec 9 lst
         <+> prettyTermPrec 9 base
         <+> parens (prettyVar x <> comma <> prettyVar xs <> comma <> prettyVar ih <> "." <+> prettyTermPrec 0 step)
+  TInd n x ih down base y jh up ->
+    paren (prec > 0) $
+      "ind"
+        <> parens
+          ( prettyTermPrec 0 n
+              <> semi
+              <+> prettyVar x
+              <> comma
+              <> prettyVar ih
+              <> "."
+              <+> prettyTermPrec 0 down
+              <> semi
+              <+> prettyTermPrec 0 base
+              <> semi
+              <+> prettyVar y
+              <> comma
+              <> prettyVar jh
+              <> "."
+              <+> prettyTermPrec 0 up
+          )
   TOp (Operator oid params) bts ->
     pretty (opIdText oid) <> paramsDoc <> parens btsDoc
     where

@@ -38,4 +38,12 @@ computeTests =
         whnf (tLt (tNat 0) (tNat 1)) @?= TUnit
         whnf (tLt (tNat 1) (tNat 0)) @?= TVoid
         whnf (tLt (tNat 2) (tNat 2)) @?= TVoid
+    , testCase "integer induction" $ do
+        let x = Var "x"
+            ih = Var "ih"
+            -- sum 0..n = n(n+1)/2, here just n+0 via adding 1 each up-step:
+            -- ind(n; _.0; 0; k,r. r+1)  = n  for n≥0
+            t n = TInd (tNat n) x ih (tNat 0) (tNat 0) x ih (tAdd (TVar ih) (tNat 1))
+        whnf (t 0) @?= tNat 0
+        whnf (t 3) @?= tNat 3
     ]

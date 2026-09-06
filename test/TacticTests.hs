@@ -90,6 +90,12 @@ tacticTests =
         case prove coreLibrary g tx of
           Left e -> assertFailure (show (prettyError e))
           Right _ -> pure ()
+    , testCase "integer induction counts" $ do
+        let g = mustParse "ind(4; x,ih. 0; 0; k,r. r + 1) = 4 ∈ Int"
+            tx = mustTac "eq"
+        case prove coreLibrary g tx of
+          Left e -> assertFailure (show (prettyError e))
+          Right _ -> pure ()
     , testCase "equipollence of a type with itself" $ do
         let g = mustParse "∀A:U{i}. ∃f:(A → A). ∃g:(A → A). (∀x:A. g (f x) = x ∈ A) ∧ (∀y:A. f (g y) = y ∈ A)"
             tx = mustTac "intro A; exists (λx. x) THENL [auto, exists (λx. x) THENL [auto, split THENL [intro x THEN auto, intro y THEN auto]]]"

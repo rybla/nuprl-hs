@@ -127,6 +127,7 @@ rrNameDummy = \case
   RuleThin i -> "thin " <> tshow i
   RuleCumulativity _ -> "cumulativity"
   RuleDecideInt {} -> "decide"
+  RuleDecideLt {} -> "decide"
   RuleCases {} -> "decide"
 
 -- | Extract the computational content of a complete proof.

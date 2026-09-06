@@ -1,4 +1,6 @@
+compiler: ghc-9.12.2
 resolver: nightly-2025-12-30
+recommend-stack-upgrade: false
 
 packages:
-- .
+  - .

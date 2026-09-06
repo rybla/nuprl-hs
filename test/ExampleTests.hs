@@ -28,6 +28,7 @@ exampleTests =
                   , "examples/lists.nuprl"
                   , "examples/classical.nuprl"
                   , "examples/cardinality.nuprl"
+                  , "examples/denotational.nuprl"
                   ]
             mapM_ checkFile files
     ]

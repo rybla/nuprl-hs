@@ -106,8 +106,9 @@ qed
 ```
 
 See `examples/` for combinators, propositional logic, equality, arithmetic,
-lists, a classical fragment (DNE from excluded middle), and cardinality
-(equipollence and the pigeonhole principle).
+lists, a classical fragment (DNE from excluded middle), cardinality
+(equipollence and the pigeonhole principle), and denotational semantics
+(streams of states, §11.6 of the Nuprl book).
 
 ## What is implemented
 

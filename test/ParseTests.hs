@@ -96,4 +96,9 @@ parseTests =
         case t of
           TOp (Operator (OpId "Fin") []) [BoundTerm [] (TVar (Var "n"))] -> pure ()
           other -> assertFailure (show other)
+    , testCase "integer induction surface syntax" $ do
+        let t = mustParse "ind(3; x,ih. 0; 0; k,r. r + 1)"
+        case t of
+          TInd (TNat 3) _ _ _ (TNat 0) _ _ _ -> pure ()
+          other -> assertFailure (show other)
     ]

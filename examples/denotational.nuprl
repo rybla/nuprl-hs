@@ -1,0 +1,354 @@
+-- | Constructive denotational semantics of a small imperative language,
+-- following Constable et al., *Implementing Mathematics with the Nuprl Proof
+-- Development System* (1986), §11.6.
+--
+-- Meaning is a *stream of states*: given an initial state `a` and a time
+-- `n`, `s(a)(n)` is the program state after `n` steps. The domain `S` of
+-- well-formed streams is those functions that, once terminated, stay
+-- terminated (Figure 11.13). Combinators Abort, Skip, Assign, Concat and
+-- IF are the extracted objects of the book’s existence theorems; here they
+-- are written as terms and then shown to inhabit `S`.
+--
+-- The original library indexes statement syntax by a depth `N` using
+-- integer induction (`ind`), so that `Program = (d:N) × Statement(d)`
+-- without a recursive type (cf. Chapter 12, where the same grammar becomes
+-- `rec(T. Atomic | T#T | …)`). This file uses that `ind` encoding.
+theory Denotational
+
+comment book "Constable et al. §11.6: denotational semantics as streams of states."
+
+--------------------------------------------------------------------------------
+-- Semantic domain (Figure 11.13)
+--------------------------------------------------------------------------------
+
+-- Projections, so spread is readable (the book’s `fst` / `1st` / `2nd`).
+abs Fst(p) == let <u, v> = p in u
+abs Snd(p) == let <u, v> = p in v
+
+-- Running vs. halted. The store is kept in both cases so sequential
+-- composition can pass the final store along (the book’s `State* | Done`
+-- drops it at termination; the two encodings are otherwise the same).
+abs Status == True ⊎ True
+abs Store == Atom → Int
+abs State == Store × Status
+
+abs Running(st) == <Fst(st), inl Ax>
+abs Halted(st) == <Fst(st), inr Ax>
+
+-- Book: `<st> terminated == decide(<st>; u.void; u.int)`.
+abs Terminated(st) ==
+  decide (Snd(st)) of inl u => Void | inr u => True
+
+-- Time is an integer; streams are only required to be stable for `n ≥ 0`.
+abs StreamTy == State → Int → State
+abs Stable(f) ==
+  ∀a:State. ∀n:Int.
+    Terminated(f a n) → Terminated(f a (n + 1))
+abs S == {f:StreamTy | Stable(f)}
+
+-- Book: `T == 1`, `F == 0`, `Bool == {x:int | x=T ∨ x=F}`.
+abs Tbit == 1
+abs Fbit == 0
+abs BoolZ == {x:Int | x = 1 ∈ Int ∨ x = 0 ∈ Int}
+
+soft Fst, Snd, Status, Store, State, Running, Halted, Terminated
+soft StreamTy, Stable, S, Tbit, Fbit, BoolZ
+
+--------------------------------------------------------------------------------
+-- Integer induction (the `ind` of §11.6)
+--------------------------------------------------------------------------------
+
+-- `ind(n; x,ih.down; base; k,r.up)`: here we count `n` steps up from 0.
+theorem ind_counts :
+  ind(4; x,ih. 0; 0; k,r. r + 1) = 4 ∈ Int
+proof
+  eq
+qed
+
+--------------------------------------------------------------------------------
+-- Abort (Abort_thm)
+--------------------------------------------------------------------------------
+
+-- Never takes a step; the stream is constantly “still running”.
+abs Abort == λa. λn. Running(a)
+
+soft Abort
+
+theorem abort_never :
+  ∀a:State. ∀n:Int. ¬Terminated(Abort a n)
+proof
+  intro a
+  intro n
+  reduce
+  intro p
+  elim 3
+qed
+
+theorem abort_in_S :
+  Abort ∈ S
+proof
+  intro with Abort THENL [
+    auto,
+    intro a
+    intro n
+    intro p
+    reduce
+    elim 3
+  ]
+qed
+
+-- Abort_thm of Figure 11.13: a stream that never terminates.
+theorem Abort_thm :
+  ∃s:S. ∀a:State. ∀n:Int. ¬Terminated(s a n)
+proof
+  exists Abort THENL [lemma abort_in_S THEN hyp, lemma abort_never THEN hyp]
+qed
+
+--------------------------------------------------------------------------------
+-- Skip
+--------------------------------------------------------------------------------
+
+-- Skip completes immediately: the stream is constantly halted
+-- (zero-duration skip, as in the book’s `Mskip`).
+abs Skip == λa. λn. Halted(a)
+
+soft Skip
+
+theorem skip_immediate :
+  ∀a:State. ∀n:Int. Terminated(Skip a n)
+proof
+  intro a
+  intro n
+  reduce
+  intro
+qed
+
+theorem skip_stable :
+  ∀a:State. ∀n:Int. Terminated(Skip a n) → Terminated(Skip a (n + 1))
+proof
+  intro a
+  intro n
+  intro p
+  reduce
+  intro
+qed
+
+theorem skip_in_S :
+  Skip ∈ S
+proof
+  intro with Skip THENL [
+    auto,
+    intro a
+    intro n
+    intro p
+    reduce
+    intro
+  ]
+qed
+
+--------------------------------------------------------------------------------
+-- Assignment
+--------------------------------------------------------------------------------
+
+abs Update(s; x; v) == λy. atom_eq y x v (s y)
+abs Assign(x; v) == λa. λn. <Update(Fst(a); x; v), inr Ax>
+
+soft Update, Assign
+
+theorem update_hits :
+  ∀s:(Atom → Int). ∀v:Int. Update(s; "x"; v) "x" = v ∈ Int
+proof
+  intro s
+  intro v
+  reduce
+  eq
+qed
+
+theorem assign_halts :
+  ∀a:State. ∀n:Int. Terminated(Assign("x"; 7) a n)
+proof
+  intro a
+  intro n
+  reduce
+  intro
+qed
+
+theorem assign_lookup :
+  Fst(Assign("x"; 7) (<λy. 0, inl Ax>) 0) "x" = 7 ∈ Int
+proof
+  reduce
+  eq
+qed
+
+--------------------------------------------------------------------------------
+-- Sequential composition (Concat_thm) and conditional (If_thm)
+--------------------------------------------------------------------------------
+
+-- If `s1` is still running at time `n`, keep its state; if it has halted,
+-- run `s2` from that halted state for the remaining `n` ticks. This is the
+-- book’s `decide` form of concatenation (Figure 11.13), with the residual
+-- time left as `n` so the combinator is a closed term (the full `mu`
+-- search for the exact switch instant is `FirstDone` below).
+abs Concat(s1; s2) ==
+  λa. λn.
+    decide (Snd(s1 a n)) of
+      inl r => s1 a n
+    | inr d => s2 (s1 a n) n
+
+-- Bounded search for the first halted time in `0..n`, or `n+1` if none
+-- (the `mu x < n [P]` of Figure 11.13).
+abs FirstDone(s; a; n) ==
+  ind(n;
+    x,ih. n + 1;
+    decide (Snd(s a 0)) of inl r => 1 | inr d => 0;
+    k,r.
+      int_eq r (k + 1)
+        (decide (Snd(s a (k + 1))) of inl u => k + 2 | inr v => k + 1)
+        r)
+
+abs IF(r; s1; s2) ==
+  λa. λn.
+    decide (r (Fst(a))) of
+      inl u => s1 a n
+    | inr v => s2 a n
+
+soft Concat, FirstDone, IF
+
+-- Concatenating abort on the left is abort: the switch never fires.
+theorem concat_abort :
+  ∀s2:StreamTy. ∀a:State. ∀n:Int.
+    Concat(Abort; s2) a n = Abort a n ∈ State
+proof
+  intro s2
+  intro a
+  intro n
+  reduce
+  eq
+qed
+
+-- Skip is already halted, so concatenation switches to `s2` at once.
+theorem concat_skip :
+  ∀s2:StreamTy. ∀a:State. ∀n:Int.
+    Concat(Skip; s2) a n = s2 (Halted(a)) n ∈ State
+proof
+  intro s2
+  intro a
+  intro n
+  reduce
+  eq
+qed
+
+-- If_thm: branching is pointwise on the initial store.
+theorem if_then :
+  ∀s1:StreamTy. ∀s2:StreamTy. ∀a:State. ∀n:Int.
+    IF((λst. inl Ax); s1; s2) a n = s1 a n ∈ State
+proof
+  intro s1
+  intro s2
+  intro a
+  intro n
+  reduce
+  eq
+qed
+
+theorem if_else :
+  ∀s1:StreamTy. ∀s2:StreamTy. ∀a:State. ∀n:Int.
+    IF((λst. inr Ax); s1; s2) a n = s2 a n ∈ State
+proof
+  intro s1
+  intro s2
+  intro a
+  intro n
+  reduce
+  eq
+qed
+
+--------------------------------------------------------------------------------
+-- While (Do_thm): unfold as `IF R THEN (body; W) ELSE Skip`
+--------------------------------------------------------------------------------
+
+-- One unfolding of a while-stream, given a recursive call `w`.
+abs WhileStep(r; body; w) == IF(r; Concat(body; w); Skip)
+
+soft WhileStep
+
+theorem while_false_is_skip :
+  ∀body:StreamTy. ∀w:StreamTy. ∀a:State. ∀n:Int.
+    WhileStep((λst. inr Ax); body; w) a n = Skip a n ∈ State
+proof
+  intro body
+  intro w
+  intro a
+  intro n
+  reduce
+  eq
+qed
+
+--------------------------------------------------------------------------------
+-- Program syntax, depth-indexed by `ind` (the book’s `Statement(d)`)
+--------------------------------------------------------------------------------
+
+-- Abort | Skip | Assign id val
+abs Atomic == True ⊎ (True ⊎ (Atom × Int))
+
+-- Statement(0) is empty; Statement(n+1) may use subtrees of depth n.
+-- The original `ind(<d>; x,y.void; void; x,T. Atomic | (T#T) | …)`.
+abs Stmt(n) ==
+  ind(n; x,T. Void; Void; x,T. Atomic ⊎ (T × T))
+
+abs Program == (n:Int) × Stmt(n)
+
+soft Atomic, Stmt, Program
+
+theorem stmt0_empty :
+  Stmt(0) = Void ∈ U{i}
+proof
+  eq
+qed
+
+theorem stmt1_unfold :
+  Stmt(1) = (Atomic ⊎ (Void × Void)) ∈ U{i}
+proof
+  eq THEN auto
+qed
+
+-- Atomic meaning function (the `Matomic` of Meaning_thm).
+abs MAtomic(q) ==
+  decide q of
+    inl u => Abort
+  | inr r =>
+      decide r of
+        inl v => Skip
+      | inr asg => Assign(Fst(asg); Snd(asg))
+
+soft MAtomic
+
+theorem matomic_abort :
+  MAtomic(inl Ax) = Abort ∈ StreamTy
+proof
+  reduce
+  auto
+qed
+
+theorem matomic_skip :
+  MAtomic(inr (inl Ax)) = Skip ∈ StreamTy
+proof
+  reduce
+  auto
+qed
+
+-- A complete (depth-1) program: skip. `1st p` is the depth, `2nd p` the
+-- statement, matching Meaning_thm’s `decide(2nd p; q. Matomic(q); …)`.
+theorem skip_program_runs :
+  Terminated(MAtomic(inr (inl Ax)) (<λy. 0, inl Ax>) 1)
+proof
+  reduce
+  intro
+qed
+
+-- Book: Done == {x:atom | x="done" in atom}.
+theorem done_token :
+  "done" ∈ {x:Atom | x = "done" ∈ Atom}
+proof
+  auto
+qed

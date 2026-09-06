@@ -61,6 +61,7 @@ module Nuprl.Term
   , opIntEq
   , opLess
   , opLessThan
+  , opIntInd
   , opAtom
   , opToken
   , opAtomEq
@@ -110,6 +111,7 @@ module Nuprl.Term
   , pattern TIntEq
   , pattern TLess
   , pattern TLt
+  , pattern TInd
   , pattern TAtom
   , pattern TToken
   , pattern TAtomEq
@@ -159,6 +161,7 @@ module Nuprl.Term
   , tIntEq
   , tLess
   , tLt
+  , tInd
   , tAtom
   , tToken
   , tAtomEq
@@ -461,12 +464,13 @@ opAdd = "add"
 opSubtract = "subtract"
 opMultiply = "multiply"
 
-opDivide, opRemainder, opIntEq, opLess, opLessThan :: OpId
+opDivide, opRemainder, opIntEq, opLess, opLessThan, opIntInd :: OpId
 opDivide = "divide"
 opRemainder = "remainder"
 opIntEq = "int_eq"
 opLess = "less"
 opLessThan = "less_than"
+opIntInd = "integer_ind"
 
 opAtom, opToken, opAtomEq :: OpId
 opAtom = "atom"
@@ -605,6 +609,18 @@ pattern TLt a b <-
   TOp (Operator (OpId "less_than") []) [BoundTerm [] a, BoundTerm [] b]
   where
     TLt a b = op2 opLessThan a b
+
+-- | Integer induction @ind(n; x,ih.down; base; y,jh.up)@ (NuPRL §8 / §11.6).
+pattern TInd :: Term -> Var -> Var -> Term -> Term -> Var -> Var -> Term -> Term
+pattern TInd n x ih down base y jh up <-
+  TOp
+    (Operator (OpId "integer_ind") [])
+    [BoundTerm [] n, BoundTerm [x, ih] down, BoundTerm [] base, BoundTerm [y, jh] up]
+  where
+    TInd n x ih down base y jh up =
+      TOp
+        (mkOp opIntInd)
+        [bterm0 n, BoundTerm [x, ih] down, bterm0 base, BoundTerm [y, jh] up]
 
 pattern TAtom :: Term
 pattern TAtom = TOp (Operator (OpId "atom") []) []
@@ -817,6 +833,9 @@ tLess = TLess
 
 tLt :: Term -> Term -> Term
 tLt = TLt
+
+tInd :: Var -> Var -> Var -> Var -> Term -> Term -> Term -> Term -> Term
+tInd x ih y jh n down base up = TInd n x ih down base y jh up
 
 tToken :: Text -> Term
 tToken = TToken

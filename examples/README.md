@@ -16,6 +16,7 @@ stack exec nuprl -- check examples/logic.nuprl
 | `lists.nuprl` | `[] ∈ List A` |
 | `classical.nuprl` | `A → ¬¬A`, and DNE from excluded middle |
 | `cardinality.nuprl` | Equipollence, finite segments, pigeonhole (§11.3 of the Nuprl book) |
+| `denotational.nuprl` | Streams of states, Abort/Skip/Assign/Concat/IF, depth-indexed syntax (§11.6) |
 
 Theorems are checked by replaying their `proof` scripts on the kernel. A
 failing script is a check error, not a silent skip.

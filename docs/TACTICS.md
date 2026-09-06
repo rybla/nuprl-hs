@@ -35,6 +35,7 @@ incomplete) proof. Combinators are the standard LCF ones.
 | `idtac` | Do nothing |
 | `fail` | Fail |
 | `decide a = b` | Case analysis on integer equality |
+| `decide a < b` | Case analysis on integer comparison |
 | `decide t` | Case analysis on a union-typed term |
 
 ## Combinators

@@ -86,6 +86,19 @@ stepPrimitive = \case
          in Just (substMany [x, xs, ih] [h, tl, rec] stepT)
       lst' | not (alphaEq lst lst') -> Just (TListInd lst' base x xs ih stepT)
       _ -> Nothing
+  TInd n x ih down base y jh up ->
+    case whnf n of
+      TNat k
+        | k == 0 -> Just base
+        | k > 0 ->
+            let rec = TInd (TNat (k - 1)) x ih down base y jh up
+             in Just (substMany [y, jh] [TNat (k - 1), rec] up)
+        | otherwise ->
+            let rec = TInd (TNat (k + 1)) x ih down base y jh up
+             in Just (substMany [x, ih] [TNat (k + 1), rec] down)
+      n'
+        | not (alphaEq n n') -> Just (TInd n' x ih down base y jh up)
+      _ -> Nothing
   TAny v ty ->
     case whnf v of
       v' | not (alphaEq v v') -> Just (TAny v' ty)

@@ -92,6 +92,7 @@ Reduction is lazy (weak-head). Canonical redexes include
 - closed integer arithmetic, `int_eq`, `less`
 - closed comparisons `n < m` compute to `Unit` or `Void`
 - `list_ind` on `[]` and `::`
+- `ind(n; x,ih.down; base; y,jh.up)` integer induction (0, positive, negative)
 
 The equality rule first computes both sides.
 

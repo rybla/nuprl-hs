@@ -134,6 +134,7 @@ reserved =
   , "less"
   , "atom_eq"
   , "list_ind"
+  , "ind"
   , "fun"
   , "forall"
   , "exists"
@@ -430,6 +431,7 @@ pAtom =
     , pLess
     , pAtomEq
     , pListInd
+    , pInd
     , try pUniformOp
     , TVar <$> pVar
     ]
@@ -577,6 +579,28 @@ pListInd = do
     _ <- symbol "."
     step <- pTerm
     pure (TListInd lst base x xs ih step)
+
+-- | @ind(n; x,ih.down; base; y,jh.up)@, matching NuPRL integer induction.
+pInd :: Parser Term
+pInd = do
+  keyword "ind"
+  parens $ do
+    n <- pTerm
+    _ <- symbol ";"
+    x <- pVar
+    _ <- symbol ","
+    ih <- pVar
+    _ <- symbol "."
+    down <- pTerm
+    _ <- symbol ";"
+    base <- pTerm
+    _ <- symbol ";"
+    y <- pVar
+    _ <- symbol ","
+    jh <- pVar
+    _ <- symbol "."
+    up <- pTerm
+    pure (TInd n x ih down base y jh up)
 
 -- | Uniform syntax: @opid{params}(bterms)@ or @Opid(bterms)@.
 --
@@ -817,18 +841,25 @@ pD = do
   _ <- void (symbol "D") <|> keyword "d"
   TxD <$> optional (fromInteger <$> natural)
 
--- | @decide a = b@ (integer equality) or @decide t@ (cases on a union).
+-- | @decide a = b@, @decide a < b@, or @decide t@ (cases on a union).
+-- Comparison and equality are parsed from applications so that @decide 0 < n@
+-- is not read as case analysis on the type @0 < n@.
 pDecideTac :: Parser TacticExpr
 pDecideTac = do
   keyword "decide"
-  a <- pExpr
   choice
-    [ do
+    [ try $ do
+        a <- pApp
         _ <- symbol "="
-        b <- pExpr
+        b <- pApp
         _ <- optional (void (symbol "∈" *> pExpr) <|> void (keyword "in" *> pExpr))
         pure (TxDecideInt a b)
-    , pure (TxCases a)
+    , try $ do
+        a <- pApp
+        _ <- tryLt
+        b <- pApp
+        pure (TxDecideLt a b)
+    , TxCases <$> pExpr
     ]
 
 --------------------------------------------------------------------------------

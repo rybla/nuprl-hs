@@ -30,6 +30,7 @@ extra-source-files:
     examples/cardinality.nuprl
     examples/classical.nuprl
     examples/core.nuprl
+    examples/denotational.nuprl
     examples/equality.nuprl
     examples/functions.nuprl
     examples/integers.nuprl
@@ -39,6 +40,7 @@ data-files:
     examples/cardinality.nuprl
     examples/classical.nuprl
     examples/core.nuprl
+    examples/denotational.nuprl
     examples/equality.nuprl
     examples/functions.nuprl
     examples/integers.nuprl

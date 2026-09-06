@@ -102,6 +102,7 @@ expandRule env = \case
   RuleCut ty x -> RuleCut (expandTerm env ty) x
   RuleLemma n ts -> RuleLemma n (map (expandTerm env) ts)
   RuleDecideInt a b -> RuleDecideInt (expandTerm env a) (expandTerm env b)
+  RuleDecideLt a b -> RuleDecideLt (expandTerm env a) (expandTerm env b)
   RuleCases t -> RuleCases (expandTerm env t)
   r -> r
 
@@ -137,6 +138,8 @@ data PrimitiveRule
   | RuleCumulativity LevelExp
   | -- | Case analysis on integer equality (decidability of @Int@).
     RuleDecideInt Term Term
+  | -- | Case analysis on integer comparison.
+    RuleDecideLt Term Term
   | -- | Case analysis on a term of union type.
     RuleCases Term
   deriving stock (Eq, Show)
@@ -173,6 +176,7 @@ applyRule env rule sq0 =
         RuleThin i -> ruleThin i sq
         RuleCumulativity lvl -> ruleCumulativity lvl sq
         RuleDecideInt a b -> ruleDecideInt a b sq
+        RuleDecideLt a b -> ruleDecideLt a b sq
         RuleCases t -> ruleCases t sq
 
 --------------------------------------------------------------------------------
@@ -535,16 +539,19 @@ eqByType sq ty' a' b' =
                   , rrSubgoals = [LabeledGoal "ext" sub]
                   , rrExtract = const TAxiom
                   }
-        TProduct aTy x bTy ->
-          let used = declaredVars sq
-              u = freshVar used (Var "u")
-              v = freshVar used (Var "v")
-              fstA = TSpread a' u v (TVar u)
-              fstB = TSpread b' u v (TVar u)
-              sndA = TSpread a' u v (TVar v)
-              sndB = TSpread b' u v (TVar v)
-              bTy' = if isDummyVar x then bTy else subst1 x fstA bTy
-           in subgoals [TEqual aTy fstA fstB, TEqual bTy' sndA sndB]
+        TProduct aTy x bTy
+          | computeEq a' b' ->
+              eqDone
+          | otherwise ->
+              let used = declaredVars sq
+                  u = freshVar used (Var "u")
+                  v = freshVar used (Var "v")
+                  fstA = TSpread a' u v (TVar u)
+                  fstB = TSpread b' u v (TVar u)
+                  sndA = TSpread a' u v (TVar v)
+                  sndB = TSpread b' u v (TVar v)
+                  bTy' = if isDummyVar x then bTy else subst1 x fstA bTy
+               in subgoals [TEqual aTy fstA fstB, TEqual bTy' sndA sndB]
         TUnion aTy bTy ->
           case (a', b') of
             (TInl a1, TInl b1) -> subgoals [TEqual aTy a1 b1]
@@ -734,6 +741,15 @@ ruleElim i arg sq = do
     (TInt, _) -> elimInt sq i x
     (TList a, _) -> elimList sq i x a
     (TFalse, _) -> elimVoid sq x
+    (TNot p, arg)
+      | TLt lo hi <- headForm p ->
+          case elimLt sq lo hi False of
+            Right r -> Right r
+            Left _
+              | ElimWitness t <- arg ->
+                  elimFun sq i x p dummyVar TVoid t
+            Left _ ->
+              elimFunBackchain sq i x p TVoid
     (TNot a, ElimWitness t) ->
       -- ¬A is A → Void; instantiate.
       elimFun sq i x a dummyVar TVoid t
@@ -745,6 +761,7 @@ ruleElim i arg sq = do
     (TAll a y b, ElimWitness t) -> elimFun sq i x a y b t
     (TExists a y b, _) -> elimProd sq i x a y b
     (TSet a y p, _) -> elimSet sq i x a y p
+    (TLt lo hi, _) -> elimLt sq lo hi True
     (TSquash _, _) ->
       failRule "elim" "squash elimination is not extractable; use a squash-stable goal"
     _ -> failRule "elim" "no elimination rule for this hypothesis"
@@ -889,6 +906,33 @@ canonicalClash a b = case (headForm a, headForm b) of
   (TNat _, TAxiom) -> True
   _ -> False
 
+-- | Use a comparison proof to reduce @less a b t u@ in the conclusion.
+elimLt :: Sequent -> Term -> Term -> Bool -> Either RefineError RuleResult
+elimLt sq lo hi takeThen =
+  let c = seqConcl sq
+      c' = rewriteLess lo hi takeThen c
+   in if alphaEq c c'
+        then failRule "elim" "comparison does not reduce a `less` in the conclusion"
+        else
+          Right
+            RuleResult
+              { rrName = "elim"
+              , rrSubgoals = [LabeledGoal "main" sq {seqConcl = c'}]
+              , rrExtract = \case
+                  (e : _) -> e
+                  [] -> TAxiom
+              }
+
+rewriteLess :: Term -> Term -> Bool -> Term -> Term
+rewriteLess lo hi takeThen = go
+  where
+    go tm = case tm of
+      TLess x y th el
+        | computeEq x lo && computeEq y hi ->
+            if takeThen then th else el
+      TVar _ -> tm
+      TOp op bts -> TOp op (map (\(BoundTerm vs b) -> BoundTerm vs (go b)) bts)
+
 elimSet :: Sequent -> Int -> Var -> Term -> Var -> Term -> Either RefineError RuleResult
 elimSet sq _i s a y p =
   let used = declaredVars sq
@@ -946,12 +990,7 @@ elimInt sq _i n =
               ]
           , rrExtract = \case
               (eb : eu : ed : _) ->
-                -- A primitive recursor is not in the term language; we emit
-                -- a combined integer-eq / less tree is not faithful. We keep
-                -- the extract as a placeholder application of `int_eq` on n
-                -- versus 0, which is enough for the 0-case and documents the
-                -- induction. Full integer recursor can be added as an operator.
-                TIntEq (TVar n) (TNat 0) eb (TIntEq (TVar n) (TAdd (TVar k) (TNat 0)) eu ed)
+                TInd (TVar n) k ih ed eb k ih eu
               _ -> TAxiom
           }
 
@@ -1149,6 +1188,35 @@ ruleDecideInt a b sq =
               [LabeledGoal "eq" left, LabeledGoal "neq" right] ++ wfs
           , rrExtract = \case
               (e1 : e2 : _) -> TIntEq a b e1 e2
+              _ -> TAxiom
+          }
+
+-- | @decide a < b@: integer comparison is decidable.
+ruleDecideLt :: Term -> Term -> Sequent -> Either RefineError RuleResult
+ruleDecideLt a b sq =
+  let used = declaredVars sq
+      lth = freshVar used (Var "lt")
+      ge = freshVar used (Var "ge")
+      ltTy = TLt a b
+      left = sq {seqHyps = seqHyps sq ++ [visibleHyp lth ltTy]}
+      right = sq {seqHyps = seqHyps sq ++ [visibleHyp ge (TNot ltTy)]}
+      knownInt t = case inferType sq t of
+        Just ty -> typesEq ty TInt
+        Nothing -> case headForm t of
+          TNat _ -> True
+          _ -> False
+      wfs =
+        [ LabeledGoal "wf" sq {seqConcl = TMember t TInt}
+        | t <- [a, b]
+        , not (knownInt t)
+        ]
+   in Right
+        RuleResult
+          { rrName = "decide"
+          , rrSubgoals =
+              [LabeledGoal "lt" left, LabeledGoal "ge" right] ++ wfs
+          , rrExtract = \case
+              (e1 : e2 : _) -> TLess a b e1 e2
               _ -> TAxiom
           }
 
