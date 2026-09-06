@@ -52,6 +52,13 @@ Proof-mode commands are tactic scripts (see [TACTICS.md](TACTICS.md)) plus
 
 History is stored in `.nuprl_history`. Tab completion offers command names.
 
+## Static website
+
+`stack exec build-website` writes a GitHub Pages site to `website/`. Example
+theories are checked with the same kernel as `nuprl check`; extracts, uniform
+dumps, and weak-head forms are precomputed and embedded in the HTML. See the
+README for the colour key and deploy notes.
+
 ## Exit status
 
 Batch commands (`check`, `extract`, `eval`, …) exit `0` on success and `1`

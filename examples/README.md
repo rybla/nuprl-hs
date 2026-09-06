@@ -20,3 +20,6 @@ stack exec nuprl -- check examples/logic.nuprl
 
 Theorems are checked by replaying their `proof` scripts on the kernel. A
 failing script is a check error, not a silent skip.
+
+`stack exec build-website` renders each of these files as an annotated HTML
+document under `website/examples/`.

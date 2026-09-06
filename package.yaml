@@ -109,6 +109,12 @@ executables:
       - -with-rtsopts=-N
     dependencies:
       - nuprl-hs
+      - text
+      - containers
+      - mtl
+      - filepath
+      - directory
+      - optparse-applicative
 
 tests:
   nuprl-hs-test:

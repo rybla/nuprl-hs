@@ -20,6 +20,8 @@ and this project adheres to the
 - Example theory `examples/cardinality.nuprl` (Constable et al. §11.3).
 - Integer induction term `ind(n; x,ih.down; base; y,jh.up)` and `decide a < b`.
 - Example theory `examples/denotational.nuprl` (Constable et al. §11.6).
+- `build-website` executable: static GitHub Pages site in `website/`, with
+  annotated, interactive HTML for every example theory.
 
 ## 0.1.0.0 - 2026-09-06
 
