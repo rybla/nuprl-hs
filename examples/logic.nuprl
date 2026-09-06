@@ -1,39 +1,33 @@
--- | Intuitionistic propositional tautologies.
+-- | Intuitionistic predicate logic, encoded as types (NuPRL §9.1.4).
+--
+-- Connectives are soft: `True` is `Unit`, `A ∧ B` is `A × B`, `∀` is `Π`,
+-- `∃` is `Σ`. Squash `[A]` hides the extract of `A`. `P{i}` is the
+-- propositional universe, a display form for `U{i}`.
 theory Logic
 
-theorem true_is_true :
+--------------------------------------------------------------------------------
+-- True / False / Unit / Void
+--------------------------------------------------------------------------------
+
+theorem true_intro :
   True
 proof
   intro
 qed
 
-theorem and_intro :
-  True ∧ True
+theorem unit_intro :
+  Unit
 proof
-  intro
-  intro
   intro
 qed
 
-theorem and_elim_left :
-  True ∧ True → True
+theorem true_unique :
+  ∀x:True. x = Ax ∈ True
 proof
-  intro p
-  elim 1
-  hyp 2
-qed
-
-theorem implies_k :
-  ∀A:U{i}. ∀B:U{i}. A → B → A
-proof
-  intro A
-  intro B
   intro x
-  intro y
-  hyp 3
+  eq
 qed
 
--- Explosion / ex falso: from False anything follows.
 theorem false_elim :
   ∀A:U{i}. False → A
 proof
@@ -42,7 +36,82 @@ proof
   elim 2
 qed
 
--- Disjunction introduction.
+theorem void_elim :
+  ∀A:U{i}. Void → A
+proof
+  intro A
+  intro p
+  elim 2
+qed
+
+theorem ex_falso :
+  ∀A:P{i}. False → A
+proof
+  intro A
+  intro p
+  elim 2
+qed
+
+--------------------------------------------------------------------------------
+-- Conjunction
+--------------------------------------------------------------------------------
+
+theorem and_intro :
+  ∀A:U{i}. ∀B:U{i}. A → B → A ∧ B
+proof
+  intro A
+  intro B
+  intro a
+  intro b
+  split THENL [hyp 3, hyp 4]
+qed
+
+theorem and_elim_left :
+  ∀A:U{i}. ∀B:U{i}. A ∧ B → A
+proof
+  intro A
+  intro B
+  intro p
+  elim 3
+  hyp
+qed
+
+theorem and_elim_right :
+  ∀A:U{i}. ∀B:U{i}. A ∧ B → B
+proof
+  intro A
+  intro B
+  intro p
+  elim 3
+  hyp
+qed
+
+theorem and_comm :
+  ∀A:U{i}. ∀B:U{i}. A ∧ B → B ∧ A
+proof
+  intro A
+  intro B
+  intro p
+  elim 3
+  split THENL [hyp 5, hyp 4]
+qed
+
+theorem and_assoc :
+  ∀A:U{i}. ∀B:U{i}. ∀C:U{i}. (A ∧ B) ∧ C → A ∧ (B ∧ C)
+proof
+  intro A
+  intro B
+  intro C
+  intro p
+  elim 4
+  elim 5
+  split THENL [hyp, split THENL [hyp, hyp]]
+qed
+
+--------------------------------------------------------------------------------
+-- Disjunction
+--------------------------------------------------------------------------------
+
 theorem or_intro_left :
   ∀A:U{i}. ∀B:U{i}. A → A ∨ B
 proof
@@ -61,4 +130,350 @@ proof
   intro y
   right
   hyp
+qed
+
+theorem or_elim :
+  ∀A:U{i}. ∀B:U{i}. ∀C:U{i}. (A → C) → (B → C) → A ∨ B → C
+proof
+  intro A
+  intro B
+  intro C
+  intro f
+  intro g
+  intro d
+  elim 6 THENL [
+    elim 4 with u THENL [hyp, hyp],
+    elim 5 with v THENL [hyp, hyp]
+  ]
+qed
+
+theorem or_comm :
+  ∀A:U{i}. ∀B:U{i}. A ∨ B → B ∨ A
+proof
+  intro A
+  intro B
+  intro d
+  elim 3 THENL [right THEN hyp, left THEN hyp]
+qed
+
+--------------------------------------------------------------------------------
+-- Implication, modus ponens, K and S
+--------------------------------------------------------------------------------
+
+theorem implies_id :
+  ∀A:U{i}. A ⇒ A
+proof
+  intro A
+  intro x
+  hyp
+qed
+
+theorem modus_ponens :
+  ∀A:U{i}. ∀B:U{i}. (A ⇒ B) ⇒ A ⇒ B
+proof
+  intro A
+  intro B
+  intro f
+  intro x
+  elim 3 with x THENL [hyp, hyp]
+qed
+
+theorem implies_k :
+  ∀A:U{i}. ∀B:U{i}. A → B → A
+proof
+  intro A
+  intro B
+  intro x
+  intro y
+  hyp 3
+qed
+
+theorem implies_s :
+  ∀A:U{i}. ∀B:U{i}. ∀C:U{i}.
+    (A → B → C) → (A → B) → A → C
+proof
+  intro A
+  intro B
+  intro C
+  intro f
+  intro g
+  intro x
+  elim 5 with x THENL [
+    hyp,
+    elim 4 with x THENL [hyp, elim 8 with y THENL [hyp, hyp]]
+  ]
+qed
+
+theorem implies_trans :
+  ∀A:U{i}. ∀B:U{i}. ∀C:U{i}. (A → B) → (B → C) → A → C
+proof
+  intro A
+  intro B
+  intro C
+  intro f
+  intro g
+  intro x
+  elim 4 with x THENL [hyp, elim 5 with y THENL [hyp, hyp]]
+qed
+
+--------------------------------------------------------------------------------
+-- Negation
+--------------------------------------------------------------------------------
+
+theorem not_intro :
+  ∀A:U{i}. (A → False) → ¬A
+proof
+  intro A
+  intro f
+  intro a
+  elim 2 with a THENL [hyp, hyp]
+qed
+
+theorem not_elim :
+  ∀A:U{i}. ¬A → A → False
+proof
+  intro A
+  intro n
+  intro a
+  elim 2 with a THENL [hyp, hyp]
+qed
+
+theorem contradiction :
+  ∀A:U{i}. A → ¬A → False
+proof
+  intro A
+  intro a
+  intro n
+  elim 3 with a THENL [hyp, hyp]
+qed
+
+theorem dni :
+  ∀A:U{i}. A → ¬¬A
+proof
+  intro A
+  intro x
+  intro n
+  elim 3 with x THENL [hyp, hyp]
+qed
+
+-- ¬¬¬A → ¬A is constructive (unlike full DNE).
+theorem triple_neg :
+  ∀A:U{i}. ¬¬¬A → ¬A
+proof
+  intro A
+  intro nnn
+  intro a
+  lemma dni [A] THEN elim 4 with a THENL [hyp, elim 2 with y THENL [hyp, hyp]]
+qed
+
+theorem contrapositive :
+  ∀A:U{i}. ∀B:U{i}. (A → B) → ¬B → ¬A
+proof
+  intro A
+  intro B
+  intro f
+  intro nb
+  intro a
+  elim 3 with a THENL [hyp, elim 4 with y THENL [hyp, hyp]]
+qed
+
+theorem not_false :
+  ¬False
+proof
+  intro p
+  hyp
+qed
+
+--------------------------------------------------------------------------------
+-- Biconditional
+--------------------------------------------------------------------------------
+
+theorem iff_refl :
+  ∀A:U{i}. A ⇔ A
+proof
+  intro A
+  split THENL [intro x THEN hyp, intro x THEN hyp]
+qed
+
+theorem iff_sym :
+  ∀A:U{i}. ∀B:U{i}. (A ⇔ B) → (B ⇔ A)
+proof
+  intro A
+  intro B
+  intro p
+  elim 3
+  split THENL [hyp, hyp]
+qed
+
+theorem iff_mp :
+  ∀A:U{i}. ∀B:U{i}. (A ⇔ B) → A → B
+proof
+  intro A
+  intro B
+  intro p
+  intro a
+  elim 3
+  elim 5 with a THENL [hyp, hyp]
+qed
+
+--------------------------------------------------------------------------------
+-- Quantifiers
+--------------------------------------------------------------------------------
+
+theorem forall_elim :
+  ∀A:U{i}. ∀B:(A → U{i}). (∀x:A. B x) → ∀a:A. B a
+proof
+  intro A
+  intro B
+  intro f
+  intro a
+  elim 3 with a THENL [hyp, hyp]
+qed
+
+theorem exists_intro :
+  ∀A:U{i}. ∀B:(A → U{i}). ∀a:A. B a → ∃x:A. B x
+proof
+  intro A
+  intro B
+  intro a
+  intro b
+  exists a THENL [hyp, hyp]
+qed
+
+theorem exists_elim :
+  ∀A:U{i}. ∀B:(A → U{i}). ∀C:U{i}.
+    (∃x:A. B x) → (∀x:A. B x → C) → C
+proof
+  intro A
+  intro B
+  intro C
+  intro p
+  intro f
+  elim 4
+  elim 5 with u THENL [hyp, elim 8 with v THENL [hyp, hyp]]
+qed
+
+theorem exists_fst :
+  ∀A:U{i}. ∀B:(A → U{i}). (∃x:A. B x) → A
+proof
+  intro A
+  intro B
+  intro p
+  elim 3
+  hyp
+qed
+
+--------------------------------------------------------------------------------
+-- Distributivity and constructive De Morgan
+--------------------------------------------------------------------------------
+
+theorem and_or_distrib :
+  ∀A:U{i}. ∀B:U{i}. ∀C:U{i}. A ∧ (B ∨ C) → (A ∧ B) ∨ (A ∧ C)
+proof
+  intro A
+  intro B
+  intro C
+  intro p
+  elim 4
+  elim 6 THENL [
+    left THEN split THENL [hyp 5, hyp],
+    right THEN split THENL [hyp 5, hyp]
+  ]
+qed
+
+-- ¬(A ∨ B) ⇔ ¬A ∧ ¬B, both directions constructive.
+theorem de_morgan_or :
+  ∀A:U{i}. ∀B:U{i}. ¬(A ∨ B) → ¬A ∧ ¬B
+proof
+  intro A
+  intro B
+  intro n
+  split THENL [
+    intro a
+    elim 3 with (inl a) THENL [auto, hyp],
+    intro b
+    elim 3 with (inr b) THENL [auto, hyp]
+  ]
+qed
+
+theorem de_morgan_or_rev :
+  ∀A:U{i}. ∀B:U{i}. ¬A ∧ ¬B → ¬(A ∨ B)
+proof
+  intro A
+  intro B
+  intro p
+  intro d
+  elim 3
+  elim 4 THENL [
+    elim 5 with u1 THENL [hyp, hyp],
+    elim 6 with v1 THENL [hyp, hyp]
+  ]
+qed
+
+-- One De Morgan direction for ∧ is constructive; the converse needs EM.
+theorem de_morgan_and :
+  ∀A:U{i}. ∀B:U{i}. ¬A ∨ ¬B → ¬(A ∧ B)
+proof
+  intro A
+  intro B
+  intro d
+  intro p
+  elim 4
+  elim 3 THENL [
+    elim 7 with u THENL [hyp, hyp],
+    elim 7 with v THENL [hyp, hyp]
+  ]
+qed
+
+theorem noncontradiction :
+  ∀A:U{i}. ¬(A ∧ ¬A)
+proof
+  intro A
+  intro p
+  elim 2
+  elim 4 with u THENL [hyp, hyp]
+qed
+
+--------------------------------------------------------------------------------
+-- Squash: hide an extract
+--------------------------------------------------------------------------------
+
+theorem squash_intro :
+  ∀A:U{i}. A → [A]
+proof
+  intro A
+  intro a
+  intro
+  hyp
+qed
+
+theorem squash_true :
+  [True]
+proof
+  intro
+  intro
+qed
+
+-- The extract of a squash is always `Ax`.
+theorem squash_ax :
+  Ax ∈ [True]
+proof
+  auto
+qed
+
+--------------------------------------------------------------------------------
+-- Automation
+--------------------------------------------------------------------------------
+
+theorem prove_prop_k :
+  ∀A:U{i}. ∀B:U{i}. A → B → A
+proof
+  prove_prop
+qed
+
+theorem unfold_true :
+  True
+proof
+  unfold
+  intro
 qed

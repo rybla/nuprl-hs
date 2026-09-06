@@ -377,7 +377,7 @@ helpTactics =
     , "  intro left/right disjoint union"
     , "  intro with t     witness for ∃ / Σ / set"
     , "  elim N           eliminate hypothesis N"
-    , "  elim N with t    instantiate a Π / ∀ hypothesis"
+    , "  elim N with t    instantiate a Π / ∀ / ⋂ hypothesis"
     , "  hyp [N]          use a hypothesis (or search)"
     , "  auto             bounded automated proof search"
     , "  eq               canonical equality / membership"
@@ -403,7 +403,10 @@ helpTerms =
     , "  a = b ∈ A        a ∈ A            ¬A"
     , "  ∀x:A. B          ∃x:A. B          A ⇒ B"
     , "  {x:A | P}        [A]   (squash)   List A"
-    , "  a < b            a ≤ b            ind(n; …)   n :: ns"
+    , "  ⋂x:A. B          A ∩ B  (cap)     isect(A; x.B)"
+    , "  (x,y):A // E     A // E           quotient(A; x,y.E)"
+    , "  a < b            a ≤ b            n % m        -n"
+    , "  ind(n; …)        n :: ns          [a, b] lists / [T] squash"
     ]
 
 helpRules :: Text
@@ -427,14 +430,17 @@ helpExamples =
   T.unlines
     [ "Example theories live in the examples/ directory:"
     , "  examples/core.nuprl         logic encodings"
-    , "  examples/functions.nuprl    identity, const, composition"
-    , "  examples/logic.nuprl        propositional tautologies"
-    , "  examples/equality.nuprl     equality reasoning"
-    , "  examples/integers.nuprl     arithmetic"
-    , "  examples/lists.nuprl        lists and induction"
+    , "  examples/functions.nuprl    combinators, products, coproducts"
+    , "  examples/logic.nuprl        intuitionistic logic, squash"
+    , "  examples/equality.nuprl     equality, atoms, congruence"
+    , "  examples/integers.nuprl     arithmetic, comparison, induction"
+    , "  examples/lists.nuprl        lists, recursor, append"
     , "  examples/classical.nuprl    DNE from excluded middle"
     , "  examples/cardinality.nuprl  equipollence and pigeonhole"
     , "  examples/denotational.nuprl streams of states, program meaning"
+    , "  examples/intersection.nuprl family intersection (isect)"
+    , "  examples/sets.nuprl         set types, Nat, Positive, Bool"
+    , "  examples/quotients.nuprl    quotient types, integers mod 2"
     , ""
     , "Load one with:  nuprl check examples/logic.nuprl"
     ]

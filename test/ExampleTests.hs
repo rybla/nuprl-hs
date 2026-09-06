@@ -29,6 +29,9 @@ exampleTests =
                   , "examples/classical.nuprl"
                   , "examples/cardinality.nuprl"
                   , "examples/denotational.nuprl"
+                  , "examples/intersection.nuprl"
+                  , "examples/sets.nuprl"
+                  , "examples/quotients.nuprl"
                   ]
             mapM_ checkFile files
     ]

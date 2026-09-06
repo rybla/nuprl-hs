@@ -138,6 +138,10 @@ reserved =
   , "fun"
   , "forall"
   , "exists"
+  , "isect"
+  , "cap"
+  , "quotient"
+  , "quo"
   , "idtac"
   , "fail"
   , "intro"
@@ -230,6 +234,8 @@ pConnective = makeExprParser pConnectiveAtom opsProp
   where
     opsProp =
       [ [InfixR (tTimes <$ (symbol "×" <|> tryAndProd))]
+      , [InfixR (tIsectBin <$ isectCapSym)]
+      , [InfixR (tQuotientBin <$ quotientSym)]
       , [InfixR (TAnd <$ (symbol "∧" <|> symbol "/\\"))]
       , [InfixR (TUnion <$ (symbol "⊎" <|> symbol "+.")), InfixR (TOr <$ (symbol "∨" <|> symbol "\\/"))]
       , [InfixR (tArrow <$ arrowSym), InfixR (TImplies <$ (symbol "⇒" <|> symbol "=>"))]
@@ -243,12 +249,33 @@ pConnectiveAtom = pLam <|> pBinderTerm <|> pEqTerm
 -- but not propositional @∨@/@∧@/@⇒@, so @x = y ∈ Int ∨ P@ stays a disjunction
 -- while @a = b ∈ True ⊎ True@ is an equality at a union type.
 pTypeArg :: Parser Term
-pTypeArg = makeExprParser pArith typeOps
+pTypeArg = makeExprParser pTypeArgAtom typeOps
   where
     typeOps =
       [ [InfixR (tTimes <$ symbol "×")]
+      , [InfixR (tIsectBin <$ isectCapSym)]
+      , [InfixR (tQuotientBin <$ quotientSym)]
       , [InfixR (TUnion <$ (symbol "⊎" <|> symbol "+."))]
       ]
+
+pTypeArgAtom :: Parser Term
+pTypeArgAtom = pBinderTerm <|> pArith
+
+-- | Independent intersection @A ∩ B@, i.e. @isect(A; _.B)@.
+tIsectBin :: Term -> Term -> Term
+tIsectBin a b = TIsect a dummyVar b
+
+-- | Unicode @∩@ or ASCII @cap@.
+isectCapSym :: Parser ()
+isectCapSym = void (symbol "∩") <|> keyword "cap"
+
+-- | Independent quotient @A // E@.
+tQuotientBin :: Term -> Term -> Term
+tQuotientBin a e = TQuotient a dummyVar dummyVar e
+
+-- | Book syntax @//@, ASCII @quo@.
+quotientSym :: Parser ()
+quotientSym = void (symbol "//") <|> keyword "quo"
 
 -- | Equality @a = b ∈ T@ and membership @a ∈ T@.
 pEqTerm :: Parser Term
@@ -281,9 +308,32 @@ pBinderTerm =
   choice
     [ pForall
     , pExists
+    , try pIsectBinder
+    , try pQuotientBinder
     , try pDepFun
     , try pDepProd
     ]
+
+-- | @(x,y):A // E@ or @(x,y):A quo E@.
+pQuotientBinder :: Parser Term
+pQuotientBinder = do
+  (x, y) <- parens $ do
+    x <- pVar
+    _ <- symbol ","
+    y <- pVar
+    pure (x, y)
+  _ <- symbol ":"
+  a <- pArith
+  quotientSym
+  TQuotient a x y <$> pTerm
+
+-- | @⋂x:A. B@ or @isect x:A. B@.
+pIsectBinder :: Parser Term
+pIsectBinder = do
+  _ <- void (symbol "⋂") <|> keyword "isect"
+  (x, a) <- pTypedBinder
+  _ <- symbol "."
+  TIsect a x <$> pTerm
 
 pForall :: Parser Term
 pForall = do
@@ -341,11 +391,19 @@ pArith = makeExprParser pApp ops
   where
     ops =
       [ [Prefix (foldr (.) id <$> some (TNot <$ (symbol "¬" <|> symbol "~")))]
+      , [Prefix (TMinus <$ symbol "-")]
       , [InfixR (TCons <$ symbol "::")]
-      , [InfixL (TMul <$ tryMul), InfixL (TDiv <$ symbol "/")]
+      , [InfixL (TMul <$ tryMul), InfixL (TDiv <$ tryDiv), InfixL (TRem <$ symbol "%")]
       , [InfixL (TAdd <$ tryPlus), InfixL (TSub <$ tryMinus)]
       , [InfixN (TLt <$ tryLt), InfixN (tLe <$ tryLe)]
       ]
+
+-- | Division @/@, not the quotient type former @//@ .
+tryDiv :: Parser Text
+tryDiv = try . lexeme $ do
+  _ <- char '/'
+  notFollowedBy (char '/')
+  pure "/"
 
 tryMul :: Parser Text
 tryMul = try $ do
@@ -415,9 +473,8 @@ pAtom =
   choice
     [ parens pTerm
     , pPair
-    , pListLit
+    , pBrackTerm
     , pSet
-    , pSquash
     , pLet
     , pDecide
     , pKeywordAtom
@@ -432,6 +489,8 @@ pAtom =
     , pAtomEq
     , pListInd
     , pInd
+    , pIsectUniform
+    , pQuotientUniform
     , try pUniformOp
     , TVar <$> pVar
     ]
@@ -480,10 +539,18 @@ pPair = try . angles $ do
   _ <- symbol ","
   TPair a <$> pTerm
 
-pListLit :: Parser Term
-pListLit = try . brackets $ do
-  xs <- pTerm `sepBy` symbol ","
-  pure (foldr TCons TNil xs)
+-- | Brackets: `[]` is nil, `[a, b, …]` (needs a comma) is a list, `[T]` is squash.
+pBrackTerm :: Parser Term
+pBrackTerm = try . brackets $
+  choice
+    [ TNil <$ lookAhead (symbol "]")
+    , try $ do
+        a <- pTerm
+        _ <- symbol ","
+        xs <- pTerm `sepBy` symbol ","
+        pure (foldr TCons TNil (a : xs))
+    , TSquash <$> pTerm
+    ]
 
 pSet :: Parser Term
 pSet = try . braces $ do
@@ -492,22 +559,6 @@ pSet = try . braces $ do
   a <- pTerm
   _ <- symbol "|"
   TSet a x <$> pTerm
-
-pSquash :: Parser Term
-pSquash = try $ do
-  t <- brackets pTerm
-  -- Distinguish from list literals: a squash is [T] with a single term and
-  -- no commas. pListLit is `try` as well; we put squash after list in
-  -- pAtom... actually list is first. `[A]` would parse as a singleton list.
-  -- Squash is more important for the type theory. Parse `[T]` as squash,
-  -- and lists as `[]` / `h::t` / `[a, b, ...]`.
-  -- We already consumed via a different branch. See pAtom order:
-  -- pListLit is before pSquash. I'll swap: pSquash for `[t]` without comma,
-  -- pListLit for `[t, ...]` or `[]`.
-  pure (TSquash t)
-
--- Revisit list vs squash: I'll handle both in one parser.
--- (The pListLit / pSquash split is messy.) Let's replace with pBrackTerm.
 
 pLet :: Parser Term
 pLet = do
@@ -601,6 +652,33 @@ pInd = do
     _ <- symbol "."
     up <- pTerm
     pure (TInd n x ih down base y jh up)
+
+-- | Uniform @isect(A; x.B)@ / @isect(A; B)@. Dedicated because @isect@ is reserved.
+pIsectUniform :: Parser Term
+pIsectUniform = try $ do
+  keyword "isect"
+  bts <- parens (pBound `sepBy` symbol ";")
+  case bts of
+    [BoundTerm [] a, BoundTerm vs b] ->
+      let x = case vs of
+            v : _ -> v
+            [] -> dummyVar
+       in pure (TIsect a x b)
+    _ -> fail "isect expects isect(A; x.B)"
+
+-- | Uniform @quotient(A; x,y.E)@ / @quotient(A; E)@.
+pQuotientUniform :: Parser Term
+pQuotientUniform = try $ do
+  keyword "quotient"
+  bts <- parens (pBound `sepBy` symbol ";")
+  case bts of
+    [BoundTerm [] a, BoundTerm vs e] ->
+      let (x, y) = case vs of
+            x0 : y0 : _ -> (x0, y0)
+            [x0] -> (x0, dummyVar)
+            [] -> (dummyVar, dummyVar)
+       in pure (TQuotient a x y e)
+    _ -> fail "quotient expects quotient(A; x,y.E)"
 
 -- | Uniform syntax: @opid{params}(bterms)@ or @Opid(bterms)@.
 --

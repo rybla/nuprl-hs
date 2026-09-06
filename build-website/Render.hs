@@ -242,6 +242,22 @@ termBody lib prec t = case t of
     | otherwise ->
         paren (prec > 0) $
           conn "⋂" <> sp <> binder x <> colon <> sub lib 8 a <> dotSp <> sub lib 0 b
+  TQuotient a x y e
+    | (isDummyVar x || not (occursFree x e)) && (isDummyVar y || not (occursFree y e)) ->
+        paren (prec > 3) $ sub lib 4 a <> sp <> conn "//" <> sp <> sub lib 3 e
+    | otherwise ->
+        paren (prec > 0) $
+          raw "("
+            <> binder x
+            <> raw ","
+            <> binder y
+            <> raw ")"
+            <> colon
+            <> sub lib 8 a
+            <> sp
+            <> conn "//"
+            <> sp
+            <> sub lib 0 e
   TSquash a ->
     raw "[" <> sp <> sub lib 0 a <> sp <> raw "]"
   TAny v tyT ->

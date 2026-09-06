@@ -1,5 +1,12 @@
--- | Closed integer arithmetic, discharged by computation.
+-- | Integers: closed arithmetic, comparison, decidability, and induction.
+--
+-- Open terms do not reduce (`n + 0` stays stuck), so identities such as
+-- `n + 0 = n` are not discharged by `arith`. Closed numerals compute.
 theory Integers
+
+--------------------------------------------------------------------------------
+-- Closed arithmetic (`eq` / `arith`)
+--------------------------------------------------------------------------------
 
 theorem one_plus_one :
   1 + 1 = 2 ∈ Int
@@ -16,11 +23,178 @@ qed
 theorem ten_minus_four :
   10 - 4 = 6 ∈ Int
 proof
-  eq
+  arith
 qed
 
 theorem arith_chain :
   (1 + 2) * 3 = 9 ∈ Int
 proof
   arith
+qed
+
+theorem div_rem :
+  7 / 2 = 3 ∈ Int
+proof
+  eq
+qed
+
+theorem remainder :
+  7 % 2 = 1 ∈ Int
+proof
+  eq
+qed
+
+theorem unary_minus :
+  -3 + 5 = 2 ∈ Int
+proof
+  arith
+qed
+
+theorem minus_minus :
+  -(-4) = 4 ∈ Int
+proof
+  arith
+qed
+
+theorem zero_in_int :
+  0 ∈ Int
+proof
+  arith
+qed
+
+--------------------------------------------------------------------------------
+-- Comparison as a type (`a < b` computes to Unit or Void)
+--------------------------------------------------------------------------------
+
+theorem zero_lt_one :
+  0 < 1
+proof
+  intro
+qed
+
+theorem two_lt_five :
+  2 < 5
+proof
+  intro
+qed
+
+theorem not_one_lt_zero :
+  ¬(1 < 0)
+proof
+  intro p
+  elim 1
+qed
+
+theorem le_refl_zero :
+  0 ≤ 0
+proof
+  intro
+qed
+
+theorem zero_le_one :
+  0 ≤ 1
+proof
+  intro
+qed
+
+--------------------------------------------------------------------------------
+-- Decidability
+--------------------------------------------------------------------------------
+
+theorem int_eq_decidable :
+  ∀x:Int. ∀y:Int. x = y ∈ Int ∨ ¬(x = y ∈ Int)
+proof
+  intro x
+  intro y
+  decide x = y THENL [left THEN hyp, right THEN hyp]
+qed
+
+theorem int_lt_decidable :
+  ∀x:Int. ∀y:Int. x < y ∨ ¬(x < y)
+proof
+  intro x
+  intro y
+  decide x < y THENL [left THEN hyp, right THEN hyp]
+qed
+
+theorem decide_closed_eq :
+  2 = 2 ∈ Int ∨ ¬(2 = 2 ∈ Int)
+proof
+  decide 2 = 2 THENL [left THEN hyp, right THEN hyp]
+qed
+
+--------------------------------------------------------------------------------
+-- `int_eq` and `less` as programs
+--------------------------------------------------------------------------------
+
+theorem int_eq_same :
+  int_eq 4 4 1 0 = 1 ∈ Int
+proof
+  eq
+qed
+
+theorem int_eq_diff :
+  int_eq 4 5 1 0 = 0 ∈ Int
+proof
+  eq
+qed
+
+theorem less_true :
+  less 0 1 7 9 = 7 ∈ Int
+proof
+  eq
+qed
+
+theorem less_false :
+  less 3 1 7 9 = 9 ∈ Int
+proof
+  eq
+qed
+
+--------------------------------------------------------------------------------
+-- Integer induction (`ind` / `elim` on Int)
+--------------------------------------------------------------------------------
+
+theorem ind_counts :
+  ind(4; x,ih. 0; 0; k,r. r + 1) = 4 ∈ Int
+proof
+  eq
+qed
+
+theorem ind_down :
+  ind(-2; x,ih. ih + 1; 0; k,r. 0) = 2 ∈ Int
+proof
+  eq
+qed
+
+-- `elim` on `Int` is induction: base / successor / predecessor.
+theorem int_eq_refl :
+  ∀n:Int. n = n ∈ Int
+proof
+  intro n
+  hyp
+qed
+
+theorem int_to_unit :
+  ∀n:Int. Unit
+proof
+  intro n
+  elim 1 THENL [intro, intro, intro]
+qed
+
+--------------------------------------------------------------------------------
+-- Discrimination
+--------------------------------------------------------------------------------
+
+theorem zero_ne_one :
+  ¬(0 = 1 ∈ Int)
+proof
+  intro p
+  elim 1
+qed
+
+theorem intro_numeral :
+  Int
+proof
+  intro with 0
 qed

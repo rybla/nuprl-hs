@@ -105,16 +105,15 @@ proof
 qed
 ```
 
-See `examples/` for combinators, propositional logic, equality, arithmetic,
-lists, a classical fragment (DNE from excluded middle), cardinality
-(equipollence and the pigeonhole principle), and denotational semantics
-(streams of states, §11.6 of the Nuprl book).
+See `examples/` for a standard library (combinators, logic, equality, integers,
+lists, classical reasoning, sets, quotients), plus cardinality, denotational
+semantics, and intersection types.
 
 ## What is implemented
 
 - Uniform CTT terms with binding and universe levels
 - Dependent functions (Π), dependent pairs (Σ), disjoint union, equality,
-  integers, atoms, lists, sets, squash
+  integers, atoms, lists, sets, intersection (`isect`), quotients, squash
 - Soft logic encodings (`True`, `False`, `∧`, `∨`, `⇒`, `∀`, `∃`, `∈`, …)
 - Primitive refinement rules with extract combinators
 - LCF tactics: `THEN`, `THENL`, `ORELSE`, `REPEAT`, `TRY`, `auto`, `arith`
@@ -134,7 +133,7 @@ the refinement loop. Deliberately out of scope for this first line:
 - The full rewrite / conversion package (NuPRL §9.7)
 - SupInf and the original Arith decision procedure (we decide closed
   integer equalities by computation)
-- Recursive types (`rec`) and quotient types
+- Recursive types (`rec`)
 
 Those layers can be added against the same pure kernel.
 

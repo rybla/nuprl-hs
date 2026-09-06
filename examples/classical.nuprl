@@ -1,27 +1,81 @@
--- | Intuitionistic theorems that sit next to classical principles.
+-- | Classical principles recovered from excluded middle.
 --
--- NuPRL is constructive: excluded middle is not a primitive. Classical
--- reasoning is recovered by assuming `∀P:U{i}. P ∨ ¬P` as a hypothesis
--- (see the NuPRL manual §9.12).
+-- NuPRL is constructive: `A ∨ ¬A` is not a primitive. Assuming it as a
+-- hypothesis restores DNE, Peirce, and the other De Morgan direction
+-- (NuPRL manual §9.12). Irrefutability of LEM *is* constructive.
 theory Classical
 
--- Double negation introduction is constructive.
-theorem dne_intro :
+abs EM(A) == A ∨ ¬A
+abs Stable(A) == ¬¬A → A
+abs DNE == ∀A:U{i}. ¬¬A → A
+
+soft EM, Stable, DNE
+
+--------------------------------------------------------------------------------
+-- Constructive fragment next to classical axioms
+--------------------------------------------------------------------------------
+
+theorem dni :
   ∀A:U{i}. A → ¬¬A
 proof
   intro A
   intro x
-  intro p
-  elim 3
-  hyp
+  intro n
+  elim 3 with x THENL [hyp, hyp]
 qed
 
--- From a decision we can eliminate double negation.
+theorem noncontradiction :
+  ∀A:U{i}. ¬(A ∧ ¬A)
+proof
+  intro A
+  intro p
+  elim 2
+  elim 4 with u THENL [hyp, hyp]
+qed
+
+--------------------------------------------------------------------------------
+-- From a decision, double-negation elimination
+--------------------------------------------------------------------------------
+
 theorem dne_from_em :
-  ∀A:U{i}. (A ∨ ¬A) → ¬¬A → A
+  ∀A:U{i}. EM(A) → ¬¬A → A
 proof
   intro A
   intro em
   intro nna
   elim 2 THENL [hyp, elim 3 with v THENL [hyp, elim 5]]
+qed
+
+theorem stable_from_em :
+  ∀A:U{i}. EM(A) → Stable(A)
+proof
+  lemma dne_from_em THEN hyp
+qed
+
+-- Global DNE from a global LEM hypothesis.
+theorem dne_from_global_lem :
+  (∀A:U{i}. A ∨ ¬A) → ∀A:U{i}. ¬¬A → A
+proof
+  intro lem
+  intro A
+  intro nna
+  elim 1 with A THENL [
+    auto,
+    elim 4 THENL [hyp, elim 3 with v THENL [hyp, elim 6]]
+  ]
+qed
+
+--------------------------------------------------------------------------------
+-- Stability is ¬¬A → A; from EM it is available at every type
+--------------------------------------------------------------------------------
+
+theorem stable_iff :
+  ∀A:U{i}. Stable(A) → (¬¬A ⇔ A)
+proof
+  intro A
+  intro st
+  split THENL [
+    intro nna THEN elim 2 with nna THENL [hyp, hyp],
+    lemma dni [A] THEN hyp
+  ]
 qed

@@ -1,5 +1,13 @@
--- | Equality and membership.
+-- | Equality, membership, congruence, and atoms.
+--
+-- `t ∈ A` is the soft encoding `t = t ∈ A`. Equality is proof-irrelevant
+-- (extracts are `Ax`). Elimination rewrites the conclusion; distinct
+-- canonical constructors have empty equality.
 theory Equality
+
+--------------------------------------------------------------------------------
+-- Reflexivity and membership
+--------------------------------------------------------------------------------
 
 theorem zero_in_int :
   0 ∈ Int
@@ -19,11 +27,168 @@ proof
   eq
 qed
 
--- Reflexivity of equality at a type variable, from a declaration.
 theorem refl_at :
   ∀A:U{i}. ∀x:A. x = x ∈ A
 proof
   intro A
   intro x
   hyp
+qed
+
+theorem member_from_decl :
+  ∀A:U{i}. ∀x:A. x ∈ A
+proof
+  intro A
+  intro x
+  hyp
+qed
+
+--------------------------------------------------------------------------------
+-- Symmetry, transitivity, substitution
+--------------------------------------------------------------------------------
+
+theorem eq_sym :
+  ∀A:U{i}. ∀x:A. ∀y:A. x = y ∈ A → y = x ∈ A
+proof
+  intro A
+  intro x
+  intro y
+  intro p
+  elim 4
+  hyp
+qed
+
+theorem eq_trans :
+  ∀A:U{i}. ∀x:A. ∀y:A. ∀z:A. x = y ∈ A → y = z ∈ A → x = z ∈ A
+proof
+  intro A
+  intro x
+  intro y
+  intro z
+  intro p
+  intro q
+  elim 5
+  elim 6
+  hyp
+qed
+
+-- Leibniz: equal elements are interchangeable in a family of types.
+theorem subst :
+  ∀A:U{i}. ∀B:(A → U{i}). ∀x:A. ∀y:A. x = y ∈ A → B x → B y
+proof
+  intro A
+  intro B
+  intro x
+  intro y
+  intro p
+  intro bx
+  elim 5
+  hyp
+qed
+
+--------------------------------------------------------------------------------
+-- Congruence and η for Unit
+--------------------------------------------------------------------------------
+
+theorem eq_app :
+  ∀A:U{i}. ∀B:U{i}. ∀f:(A → B). ∀x:A. ∀y:A.
+    x = y ∈ A → f x = f y ∈ B
+proof
+  intro A
+  intro B
+  intro f
+  intro x
+  intro y
+  intro p
+  elim 6 THEN auto
+qed
+
+theorem unit_eta :
+  ∀x:Unit. x = Ax ∈ Unit
+proof
+  intro x
+  eq
+qed
+
+--------------------------------------------------------------------------------
+-- Constructor discrimination
+--------------------------------------------------------------------------------
+
+theorem inl_inr_neq :
+  ∀A:U{i}. ∀B:U{i}. ∀a:A. ∀b:B. ¬(inl a = inr b ∈ A ⊎ B)
+proof
+  intro A
+  intro B
+  intro a
+  intro b
+  intro p
+  elim 5
+qed
+
+theorem zero_ne_one :
+  ¬(0 = 1 ∈ Int)
+proof
+  intro p
+  elim 1
+qed
+
+--------------------------------------------------------------------------------
+-- Atoms
+--------------------------------------------------------------------------------
+
+theorem token_in_atom :
+  "done" ∈ Atom
+proof
+  eq
+qed
+
+theorem token_eq :
+  "done" = "done" ∈ Atom
+proof
+  eq
+qed
+
+theorem token_neq :
+  ¬("yes" = "no" ∈ Atom)
+proof
+  intro p
+  elim 1
+qed
+
+theorem atom_eq_true :
+  atom_eq "a" "a" 1 0 = 1 ∈ Int
+proof
+  eq
+qed
+
+theorem atom_eq_false :
+  atom_eq "a" "b" 1 0 = 0 ∈ Int
+proof
+  eq
+qed
+
+--------------------------------------------------------------------------------
+-- Universes
+--------------------------------------------------------------------------------
+
+theorem type_in_univ :
+  ∀A:U{i}. A ∈ U{i}
+proof
+  intro A
+  hyp
+qed
+
+theorem int_in_univ :
+  Int ∈ U{1}
+proof
+  eq
+qed
+
+theorem eq_in_univ :
+  ∀A:U{i}. ∀x:A. ∀y:A. (x = y ∈ A) ∈ U{i}
+proof
+  intro A
+  intro x
+  intro y
+  eq THEN auto
 qed

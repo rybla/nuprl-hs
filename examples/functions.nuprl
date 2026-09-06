@@ -1,7 +1,24 @@
--- | Combinators of the simply-typed λ-calculus, proved in CTT.
+-- | Combinators, products, coproducts, and the function rules of CTT.
+--
+-- Extracts are programs: identity is `λA. λx. x`, composition is
+-- `λf. λg. λx. f (g x)`. Dependent application, currying, and case
+-- analysis on a disjoint union are the same rules as ∀ / ∃ / ∨.
 theory Functions
 
--- The polymorphic identity. Extract: λA. λx. x
+abs Id == λx. x
+abs K == λx. λy. x
+abs S == λf. λg. λx. (f x) (g x)
+abs Compose == λf. λg. λx. f (g x)
+abs Flip == λf. λx. λy. f y x
+abs Fst(p) == let <u, v> = p in u
+abs Snd(p) == let <u, v> = p in v
+
+soft Id, K, S, Compose, Flip, Fst, Snd
+
+--------------------------------------------------------------------------------
+-- Combinators
+--------------------------------------------------------------------------------
+
 theorem identity :
   ∀A:U{i}. A → A
 proof
@@ -10,7 +27,6 @@ proof
   hyp
 qed
 
--- The K combinator. Extract: λA. λB. λx. λy. x
 theorem const :
   ∀A:U{i}. ∀B:U{i}. A → B → A
 proof
@@ -21,7 +37,33 @@ proof
   hyp 3
 qed
 
--- Function composition. Extract: λA. λB. λC. λf. λg. λx. f (g x)
+-- The S combinator. Extract: λA. λB. λC. λf. λg. λx. (f x) (g x)
+theorem subst_comb :
+  ∀A:U{i}. ∀B:U{i}. ∀C:U{i}.
+    (A → B → C) → (A → B) → A → C
+proof
+  intro A
+  intro B
+  intro C
+  intro f
+  intro g
+  intro x
+  elim 5 with x THENL [
+    hyp,
+    elim 4 with x THENL [hyp, elim 8 with y THENL [hyp, hyp]]
+  ]
+qed
+
+theorem apply :
+  ∀A:U{i}. ∀B:U{i}. (A → B) → A → B
+proof
+  intro A
+  intro B
+  intro f
+  intro x
+  elim 3 with x THENL [hyp, hyp]
+qed
+
 theorem compose :
   ∀A:U{i}. ∀B:U{i}. ∀C:U{i}. (B → C) → (A → B) → A → C
 proof
@@ -32,4 +74,320 @@ proof
   intro g
   intro x
   elim 5 with x THENL [hyp, elim 4 with y THENL [hyp, hyp]]
+qed
+
+theorem flip :
+  ∀A:U{i}. ∀B:U{i}. ∀C:U{i}. (A → B → C) → B → A → C
+proof
+  intro A
+  intro B
+  intro C
+  intro f
+  intro y
+  intro x
+  elim 4 with x THENL [hyp, elim 7 with y THENL [hyp, hyp]]
+qed
+
+-- `auto` discharges identity; `assumption` is a synonym for `hyp`.
+theorem identity_auto :
+  ∀A:U{i}. A → A
+proof
+  auto
+qed
+
+theorem const_thin :
+  ∀A:U{i}. ∀B:U{i}. A → B → A
+proof
+  intro A
+  intro B
+  intro x
+  intro y
+  thin 4
+  assumption
+qed
+
+--------------------------------------------------------------------------------
+-- Extensionality, η, and lemmas
+--------------------------------------------------------------------------------
+
+theorem fun_ext :
+  ∀A:U{i}. ∀B:U{i}. ∀f:(A → B). ∀g:(A → B).
+    (∀x:A. f x = g x ∈ B) → f = g ∈ (A → B)
+proof
+  intro A
+  intro B
+  intro f
+  intro g
+  intro ext
+  eq
+  elim 5 with x THENL [hyp, hyp]
+qed
+
+theorem fun_eta :
+  ∀A:U{i}. ∀B:U{i}. ∀f:(A → B). (λx. f x) = f ∈ (A → B)
+proof
+  intro A
+  intro B
+  intro f
+  eq THEN auto
+qed
+
+theorem app_cong :
+  ∀A:U{i}. ∀B:U{i}. ∀f:(A → B). ∀g:(A → B). ∀x:A. ∀y:A.
+    (f = g ∈ (A → B)) → (x = y ∈ A) → f x = g y ∈ B
+proof
+  intro A
+  intro B
+  intro f
+  intro g
+  intro x
+  intro y
+  intro pf
+  intro pxy
+  elim 7 THEN elim 8 THEN auto
+qed
+
+-- Reuse a completed theorem by name.
+theorem identity_via_lemma :
+  ∀A:U{i}. A → A
+proof
+  lemma identity THEN hyp
+qed
+
+theorem const_at_unit :
+  Unit → True → Unit
+proof
+  lemma const [Unit, True] THEN hyp
+qed
+
+--------------------------------------------------------------------------------
+-- Products and currying
+--------------------------------------------------------------------------------
+
+theorem pair_intro :
+  ∀A:U{i}. ∀B:U{i}. A → B → A × B
+proof
+  intro A
+  intro B
+  intro x
+  intro y
+  split THENL [hyp 3, hyp 4]
+qed
+
+theorem fst_proj :
+  ∀A:U{i}. ∀B:U{i}. A × B → A
+proof
+  intro A
+  intro B
+  intro p
+  elim 3
+  hyp
+qed
+
+theorem snd_proj :
+  ∀A:U{i}. ∀B:U{i}. A × B → B
+proof
+  intro A
+  intro B
+  intro p
+  elim 3
+  hyp
+qed
+
+theorem pair_beta_fst :
+  ∀A:U{i}. ∀B:U{i}. ∀x:A. ∀y:B. Fst(<x, y>) = x ∈ A
+proof
+  intro A
+  intro B
+  intro x
+  intro y
+  auto
+qed
+
+theorem pair_beta_snd :
+  ∀A:U{i}. ∀B:U{i}. ∀x:A. ∀y:B. Snd(<x, y>) = y ∈ B
+proof
+  intro A
+  intro B
+  intro x
+  intro y
+  auto
+qed
+
+theorem curry :
+  ∀A:U{i}. ∀B:U{i}. ∀C:U{i}. (A × B → C) → A → B → C
+proof
+  intro A
+  intro B
+  intro C
+  intro f
+  intro x
+  intro y
+  elim 4 with <x, y> THENL [auto, hyp]
+qed
+
+theorem uncurry :
+  ∀A:U{i}. ∀B:U{i}. ∀C:U{i}. (A → B → C) → A × B → C
+proof
+  intro A
+  intro B
+  intro C
+  intro f
+  intro p
+  elim 5
+  elim 4 with u THENL [hyp, elim 8 with v THENL [hyp, hyp]]
+qed
+
+-- Dependent pair: a witness for the first component.
+theorem sigma_intro :
+  ∀A:U{i}. ∀B:(A → U{i}). ∀a:A. B a → (x:A) × B x
+proof
+  intro A
+  intro B
+  intro a
+  intro b
+  intro with a THENL [hyp, hyp]
+qed
+
+theorem sigma_fst :
+  ∀A:U{i}. ∀B:(A → U{i}). ((x:A) × B x) → A
+proof
+  intro A
+  intro B
+  intro p
+  elim 3
+  hyp
+qed
+
+--------------------------------------------------------------------------------
+-- Disjoint union / case analysis
+--------------------------------------------------------------------------------
+
+theorem inl_intro :
+  ∀A:U{i}. ∀B:U{i}. A → A ⊎ B
+proof
+  intro A
+  intro B
+  intro x
+  left
+  hyp
+qed
+
+theorem inr_intro :
+  ∀A:U{i}. ∀B:U{i}. B → A ⊎ B
+proof
+  intro A
+  intro B
+  intro y
+  right
+  hyp
+qed
+
+theorem case_union :
+  ∀A:U{i}. ∀B:U{i}. ∀C:U{i}.
+    (A → C) → (B → C) → A ⊎ B → C
+proof
+  intro A
+  intro B
+  intro C
+  intro f
+  intro g
+  intro d
+  elim 6 THENL [
+    elim 4 with u THENL [hyp, hyp],
+    elim 5 with v THENL [hyp, hyp]
+  ]
+qed
+
+-- `decide t` cases on a union-typed term (wf, inl, inr).
+theorem decide_inl :
+  ∀A:U{i}. ∀B:U{i}. ∀C:U{i}.
+    (A → C) → (B → C) → A ⊎ B → C
+proof
+  intro A
+  intro B
+  intro C
+  intro f
+  intro g
+  intro d
+  decide d THENL [
+    auto,
+    elim 4 with u THENL [hyp, hyp],
+    elim 5 with v THENL [hyp, hyp]
+  ]
+qed
+
+--------------------------------------------------------------------------------
+-- Universes, dependent functions, intersection
+--------------------------------------------------------------------------------
+
+-- A type in `U{i}` inhabits every larger universe (`hyp` uses cumulativity).
+theorem cumulativity :
+  ∀A:U{i}. A ∈ U{i+1}
+proof
+  intro A
+  hyp
+qed
+
+theorem dep_apply :
+  ∀A:U{i}. ∀B:(A → U{i}). ∀f:((x:A) → B x). ∀a:A. B a
+proof
+  intro A
+  intro B
+  intro f
+  intro a
+  elim 3 with a THENL [hyp, hyp]
+qed
+
+-- Intersection polymorphism: the extract is `λx. x`, not `λA. λx. x`.
+theorem isect_id :
+  ⋂A:U{i}. A → A
+proof
+  intro A
+  intro x
+  hyp
+qed
+
+--------------------------------------------------------------------------------
+-- Computation and tactic combinators
+--------------------------------------------------------------------------------
+
+-- The conclusion is a redex; `compute` unfolds it to `True`.
+theorem compute_beta :
+  (λA. A) True
+proof
+  compute
+  intro
+qed
+
+theorem reduce_id :
+  (λx. x) Unit
+proof
+  reduce
+  intro
+qed
+
+theorem unit_terminal :
+  ∀A:U{i}. A → Unit
+proof
+  intro A
+  intro x
+  intro
+qed
+
+-- `D` decomposes the conclusion; `TRY` / `idtac` are LCF combinators.
+theorem true_via_D :
+  True
+proof
+  D
+qed
+
+theorem orelse_left :
+  ∀A:U{i}. ∀B:U{i}. A → A ⊎ B
+proof
+  intro A
+  intro B
+  intro x
+  left ORELSE right
+  hyp
 qed

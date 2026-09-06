@@ -1,5 +1,17 @@
--- | Lists: nil introduction and a trivial membership.
+-- | Lists: nil, cons, the recursor, and closed computation of `list_ind`.
+--
+-- A singleton list is `h :: []`; `[t]` is squash, `[a, b, …]` (with a
+-- comma) is a list literal.
 theory Lists
+
+abs Append(xs; ys) == list_ind xs (ys) (h, t, ih. h :: ih)
+abs Length(xs) == list_ind xs 0 (h, t, ih. ih + 1)
+
+soft Append, Length
+
+--------------------------------------------------------------------------------
+-- Formation and constructors
+--------------------------------------------------------------------------------
 
 theorem nil_is_list :
   [] ∈ List Int
@@ -7,10 +19,112 @@ proof
   eq
 qed
 
--- The empty list inhabits List A for any element type.
 theorem nil_poly :
   ∀A:U{i}. [] ∈ List A
 proof
   intro A
   intro
+qed
+
+theorem cons_intro :
+  ∀A:U{i}. A → List A → List A
+proof
+  intro A
+  intro h
+  intro t
+  intro with h THENL [hyp, hyp]
+qed
+
+theorem cons_in_list :
+  1 :: [] ∈ List Int
+proof
+  auto
+qed
+
+theorem list_lit :
+  [1, 2, 3] ∈ List Int
+proof
+  auto
+qed
+
+--------------------------------------------------------------------------------
+-- Discrimination
+--------------------------------------------------------------------------------
+
+theorem nil_ne_cons :
+  ∀A:U{i}. ∀h:A. ∀t:List A. ¬([] = h :: t ∈ List A)
+proof
+  intro A
+  intro h
+  intro t
+  intro p
+  elim 4
+qed
+
+--------------------------------------------------------------------------------
+-- Recursion / induction
+--------------------------------------------------------------------------------
+
+-- The list recursor. Extract is `list_ind`.
+theorem list_rec :
+  ∀A:U{i}. ∀C:U{i}. C → (A → List A → C → C) → List A → C
+proof
+  intro A
+  intro C
+  intro base
+  intro step
+  intro xs
+  elim 5 THENL [
+    hyp 3,
+    elim 4 with h THENL [
+      hyp,
+      elim 9 with tl THENL [hyp, elim 10 with ih THENL [hyp, hyp]]
+    ]
+  ]
+qed
+
+theorem list_ind_nil :
+  list_ind [] 0 (h, t, ih. ih + 1) = 0 ∈ Int
+proof
+  eq
+qed
+
+theorem list_ind_cons :
+  list_ind (1 :: 2 :: []) 0 (h, t, ih. ih + 1) = 2 ∈ Int
+proof
+  eq
+qed
+
+theorem length_nil :
+  Length([]) = 0 ∈ Int
+proof
+  eq
+qed
+
+theorem length_two :
+  Length([1, 2]) = 2 ∈ Int
+proof
+  eq
+qed
+
+theorem append_nil :
+  Append([] ; 1 :: []) = 1 :: [] ∈ List Int
+proof
+  auto
+qed
+
+theorem append_cons :
+  Append(1 :: [] ; 2 :: []) = 1 :: 2 :: [] ∈ List Int
+proof
+  auto
+qed
+
+--------------------------------------------------------------------------------
+-- Map as a term
+--------------------------------------------------------------------------------
+
+theorem map_add1 :
+  list_ind (0 :: 1 :: []) [] (h, t, ih. (h + 1) :: ih) = (1 :: 2 :: []) ∈ List Int
+proof
+  auto
 qed

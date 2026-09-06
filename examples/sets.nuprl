@@ -1,0 +1,229 @@
+-- | Set types `{x:A | P}`: comprehension, carriers, and standard subsets.
+--
+-- An inhabitant of a set is an element of `A`; the proof of `P` is hidden
+-- (squash-like) and cannot appear in extracts. Independent intersection
+-- `A ∩ B` is *not* the set of common elements — that is `{x:A | x ∈ B}`.
+theory Sets
+
+abs Empty(A) == {x:A | False}
+abs Univ(A) == {x:A | True}
+abs Singleton(A; a) == {x:A | x = a ∈ A}
+abs Sep(A; F) == {x:A | F x}
+abs Inter(A; F; G) == {x:A | F x ∧ G x}
+abs Union(A; F; G) == {x:A | F x ∨ G x}
+abs Subset(A; B) == ∀x:A. x ∈ B
+abs Positive == {p:Int | 0 < p}
+abs Nat == {n:Int | 0 ≤ n}
+abs BoolZ == {x:Int | x = 0 ∈ Int ∨ x = 1 ∈ Int}
+
+soft Empty, Univ, Singleton, Sep, Inter, Union, Subset, Positive, Nat, BoolZ
+
+--------------------------------------------------------------------------------
+-- Comprehension and the carrier
+--------------------------------------------------------------------------------
+
+theorem sep_intro :
+  ∀A:U{i}. ∀F:(A → U{i}). ∀x:A. F x → x ∈ {y:A | F y}
+proof
+  intro A
+  intro F
+  intro x
+  intro px
+  auto
+qed
+
+theorem set_intro_pos :
+  1 ∈ {p:Int | 0 < p}
+proof
+  auto
+qed
+
+-- Projection: a set element is an element of the carrier.
+theorem set_elim_carrier :
+  ∀A:U{i}. ∀F:(A → U{i}). {y:A | F y} → A
+proof
+  intro A
+  intro F
+  intro s
+  elim 3
+  hyp
+qed
+
+theorem positive_to_int :
+  Positive → Int
+proof
+  intro s
+  elim 1
+  hyp
+qed
+
+--------------------------------------------------------------------------------
+-- Empty and full sets
+--------------------------------------------------------------------------------
+
+theorem empty_elim :
+  ∀A:U{i}. ∀B:U{i}. Empty(A) → B
+proof
+  intro A
+  intro B
+  intro s
+  elim 3
+  elim 5
+qed
+
+theorem univ_intro :
+  ∀A:U{i}. ∀x:A. x ∈ Univ(A)
+proof
+  intro A
+  intro x
+  auto
+qed
+
+theorem full_from_carrier :
+  ∀A:U{i}. A → Univ(A)
+proof
+  intro A
+  intro x
+  intro with x THENL [hyp, intro]
+qed
+
+--------------------------------------------------------------------------------
+-- Singletons
+--------------------------------------------------------------------------------
+
+theorem singleton_intro :
+  ∀A:U{i}. ∀a:A. a ∈ Singleton(A; a)
+proof
+  intro A
+  intro a
+  auto
+qed
+
+theorem one_in_sing :
+  1 ∈ {x:Int | x = 1 ∈ Int}
+proof
+  auto
+qed
+
+--------------------------------------------------------------------------------
+-- Predicate union and intersection (same carrier)
+--------------------------------------------------------------------------------
+
+theorem inter_intro :
+  ∀A:U{i}. ∀F:(A → U{i}). ∀G:(A → U{i}).
+    ∀x:A. F x → G x → x ∈ Inter(A; F; G)
+proof
+  intro A
+  intro F
+  intro G
+  intro x
+  intro px
+  intro qx
+  auto
+qed
+
+theorem union_intro_left :
+  ∀A:U{i}. ∀F:(A → U{i}). ∀G:(A → U{i}).
+    ∀x:A. F x → x ∈ Union(A; F; G)
+proof
+  intro A
+  intro F
+  intro G
+  intro x
+  intro px
+  intro with x THENL [hyp, left THEN hyp]
+qed
+
+theorem union_intro_right :
+  ∀A:U{i}. ∀F:(A → U{i}). ∀G:(A → U{i}).
+    ∀x:A. G x → x ∈ Union(A; F; G)
+proof
+  intro A
+  intro F
+  intro G
+  intro x
+  intro qx
+  intro with x THENL [hyp, right THEN hyp]
+qed
+
+--------------------------------------------------------------------------------
+-- Common elements of two types, as a set
+--------------------------------------------------------------------------------
+
+theorem common_intro :
+  ∀A:U{i}. ∀B:U{i}. ∀x:A. x ∈ B → x ∈ {y:A | y ∈ B}
+proof
+  intro A
+  intro B
+  intro x
+  intro xb
+  auto
+qed
+
+theorem subset_refl :
+  ∀A:U{i}. Subset(A; A)
+proof
+  intro A
+  intro x
+  hyp
+qed
+
+theorem subset_empty :
+  ∀A:U{i}. Subset(Empty(A); A)
+proof
+  intro A
+  intro x
+  elim 2
+  elim 4
+qed
+
+--------------------------------------------------------------------------------
+-- Standard subsets of Int and Atom
+--------------------------------------------------------------------------------
+
+theorem one_is_positive :
+  1 ∈ Positive
+proof
+  auto
+qed
+
+theorem zero_is_nat :
+  0 ∈ Nat
+proof
+  auto
+qed
+
+theorem one_is_nat :
+  1 ∈ Nat
+proof
+  auto
+qed
+
+theorem zero_is_boolz :
+  0 ∈ BoolZ
+proof
+  intro with 0 THENL [eq, left THEN eq]
+qed
+
+theorem one_is_boolz :
+  1 ∈ BoolZ
+proof
+  intro with 1 THENL [eq, right THEN eq]
+qed
+
+theorem done_token_set :
+  "done" ∈ {x:Atom | x = "done" ∈ Atom}
+proof
+  auto
+qed
+
+--------------------------------------------------------------------------------
+-- Set equality in a universe
+--------------------------------------------------------------------------------
+
+theorem empty_eq :
+  ∀A:U{i}. Empty(A) = {x:A | False} ∈ U{i}
+proof
+  intro A
+  eq THEN auto
+qed

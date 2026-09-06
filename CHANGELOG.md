@@ -6,10 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to the
 [Haskell Package Versioning Policy](https://pvp.haskell.org/).
 
+## 0.3.0.0
+
+### Added
+
+- Standard-library example theories: combinators and type formers
+  (`functions.nuprl`), intuitionistic logic and squash (`logic.nuprl`),
+  equality / atoms (`equality.nuprl`), integer arithmetic and induction
+  (`integers.nuprl`), lists (`lists.nuprl`), classical reasoning from
+  excluded middle (`classical.nuprl`), and set types (`sets.nuprl`).
+- Bracket syntax: `[T]` is squash, `[]` is nil, `[a, b, …]` is a list.
+- Infix remainder `%` and prefix integer negation.
+- Quotient types `(x,y):A // E` (`quotient`): formation (equivalence
+  laws), introduction of a representative, equality via the relation,
+  and functionality elimination.
+- Example theory `examples/quotients.nuprl` (integers modulo 2).
+
 ## 0.2.0.0
 
 ### Added
 
+- Intersection types `⋂x:A. B` / `A ∩ B` (`isect`): introduction (hidden
+  index), elimination at a witness of the index, and equality / formation.
+- Example theory `examples/intersection.nuprl`.
 - Integer less-than as a type (`a < b`); closed instances compute to
   `Unit` / `Void`.
 - Set-membership, application congruence, and constructor discrimination

@@ -5,7 +5,7 @@ cabal-version: 2.2
 -- see: https://github.com/sol/hpack
 
 name:           nuprl-hs
-version:        0.2.0.0
+version:        0.3.0.0
 synopsis:       A modern Haskell implementation of the NuPRL proof development system
 description:    nuprl-hs is a modern, purely-functional implementation of the NuPRL
                 computational type theory (CTT) proof development system. It provides a
@@ -34,6 +34,7 @@ extra-source-files:
     examples/equality.nuprl
     examples/functions.nuprl
     examples/integers.nuprl
+    examples/intersection.nuprl
     examples/lists.nuprl
     examples/logic.nuprl
 data-files:
@@ -44,6 +45,7 @@ data-files:
     examples/equality.nuprl
     examples/functions.nuprl
     examples/integers.nuprl
+    examples/intersection.nuprl
     examples/lists.nuprl
     examples/logic.nuprl
 

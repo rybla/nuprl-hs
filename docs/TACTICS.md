@@ -12,9 +12,9 @@ incomplete) proof. Combinators are the standard LCF ones.
 | `intro x` | Name the bound variable |
 | `intro left` / `left` | Left injection of a union / disjunction |
 | `intro right` / `right` | Right injection |
-| `intro with t` | Witness for Σ / ∃ / set |
-| `elim N` | Eliminate hypothesis `N` |
-| `elim N with t` | Instantiate a Π / ∀ hypothesis |
+| `intro with t` | Witness for Σ / ∃ / set / quotient |
+| `elim N` | Eliminate hypothesis `N` (quotient: functionality of an equality) |
+| `elim N with t` | Instantiate a Π / ∀ / ⋂ hypothesis |
 | `hyp` | Search hypotheses for a match |
 | `hyp N` | Use hypothesis `N` |
 | `eq` | Canonical equality / membership |
@@ -65,7 +65,7 @@ composed with `THEN`.
 
 Depth defaults to 6. It is complete enough for identity, K, and a useful
 fragment of intuitionistic propositional logic, and incomplete (by design)
-for goals that need a witness (`∃`, dependent pairs).
+for goals that need a witness (`∃`, dependent pairs, intersection elimination).
 
 ## Scripts in theory files
 

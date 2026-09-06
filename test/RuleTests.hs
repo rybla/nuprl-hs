@@ -55,4 +55,37 @@ ruleTests =
     , testCase "closed sequent" $ do
         isClosedSequent (emptySequent (tArrow tInt tInt)) @?= True
         isClosedSequent (emptySequent (TVar (Var "A"))) @?= False
+    , testCase "isect intro hides the index and does not λ-abstract" $ do
+        let sq = emptySequent (tIsect dummyVar tUnit tUnit)
+        case applyRule emptyLemmaEnv (RuleIntro (IntroInfer Nothing)) sq of
+          Right rr -> do
+            length (rrSubgoals rr) @?= 1
+            let sub = case rrSubgoals rr of
+                  g : _ -> lgSequent g
+                  [] -> error "no subgoals"
+            seqConcl sub @?= tUnit
+            case seqHyps sub of
+              [h] -> hHidden h @?= True
+              hs -> assertFailure ("expected one hidden hyp, got " <> show (length hs))
+            rrExtract rr [tAxiom] @?= tAxiom
+          Left e -> assertFailure (show e)
+    , testCase "quotient intro extracts the representative" $ do
+        let q = tQuotient dummyVar dummyVar tInt tTrue
+            sq = emptySequent q
+        case applyRule emptyLemmaEnv (RuleIntro (IntroWitness (tNat 0))) sq of
+          Right rr -> do
+            length (rrSubgoals rr) @?= 1
+            rrExtract rr [] @?= tNat 0
+          Left e -> assertFailure (show e)
+    , testCase "isect elim instantiates without applying" $ do
+        let isectTy = tIsect dummyVar tUnit tInt
+            sq =
+              Sequent
+                [visibleHyp (Var "f") isectTy]
+                tInt
+        case applyRule emptyLemmaEnv (RuleElim 1 (ElimWitness tAxiom)) sq of
+          Right rr -> do
+            length (rrSubgoals rr) @?= 2
+            rrExtract rr [tAxiom, TVar (Var "y")] @?= TVar (Var "f")
+          Left e -> assertFailure (show e)
     ]

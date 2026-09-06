@@ -96,6 +96,36 @@ tacticTests =
         case prove coreLibrary g tx of
           Left e -> assertFailure (show (prettyError e))
           Right _ -> pure ()
+    , testCase "intersection identity extracts λx. x, not λA. λx. x" $ do
+        let g = mustParse "⋂A:U{i}. A → A"
+            tx = mustTac "intro A; intro x; hyp"
+        case prove coreLibrary g tx of
+          Left e -> assertFailure (show (prettyError e))
+          Right extr ->
+            case extr of
+              TLambda x (TVar y) | x == y -> pure ()
+              other -> assertFailure ("extract " <> show other)
+    , testCase "auto on intersection membership" $ do
+        let g = mustParse "(λx. x) ∈ ⋂A:U{i}. A → A"
+            tx = mustTac "auto"
+        case prove coreLibrary g tx of
+          Left e -> assertFailure (show (prettyError e))
+          Right _ -> pure ()
+    , testCase "independent intersection intro and elim" $ do
+        let g = mustParse "∀A:U{i}. ∀B:U{i}. A → (A ∩ B) → B"
+            tx = mustTac "intro A; intro B; intro a; intro f; elim 4 with a THENL [hyp, hyp]"
+        case prove coreLibrary g tx of
+          Left e -> assertFailure (show (prettyError e))
+          Right extr ->
+            case extr of
+              TLambda _ (TLambda _ (TLambda _ (TLambda _ (TVar _)))) -> pure ()
+              other -> assertFailure ("extract " <> show other)
+    , testCase "0 = 2 in integers mod 2" $ do
+        let g = mustParse "0 = 2 ∈ ((x,y):Int // (x % 2) = (y % 2) ∈ Int)"
+            tx = mustTac "eq THEN auto"
+        case prove coreLibrary g tx of
+          Left e -> assertFailure (show (prettyError e))
+          Right extr -> extr @?= TAxiom
     , testCase "equipollence of a type with itself" $ do
         let g = mustParse "∀A:U{i}. ∃f:(A → A). ∃g:(A → A). (∀x:A. g (f x) = x ∈ A) ∧ (∀y:A. f (g y) = y ∈ A)"
             tx = mustTac "intro A; exists (λx. x) THENL [auto, exists (λx. x) THENL [auto, split THENL [intro x THEN auto, intro y THEN auto]]]"

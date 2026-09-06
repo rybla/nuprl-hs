@@ -40,10 +40,10 @@ prettyTerm = prettyTermPrec 0
 --------------------------------------------------------------------------------
 -- Precedence
 --
---  0  λ, ∀, ∃, let
+--  0  λ, ∀, ∃, ⋂x:A. B, let
 --  1  ⇒  (right)
 --  2  ∨  (right)
---  3  ∧  (right)
+--  3  ∧, ×, ∩, //  (right)
 --  4  = ∈, ∈
 --  5  +, -  (left)
 --  6  *, /  (left)
@@ -185,6 +185,17 @@ prettyTermPrec prec t = case t of
     | otherwise ->
         paren (prec > 0) $
           "⋂" <> prettyVar x <> ":" <> prettyTermPrec 8 a <> "." <+> prettyTermPrec 0 b
+  TQuotient a x y e
+    | (isDummyVar x || not (occursIn x e)) && (isDummyVar y || not (occursIn y e)) ->
+        paren (prec > 3) $
+          prettyTermPrec 4 a <+> "//" <+> prettyTermPrec 3 e
+    | otherwise ->
+        paren (prec > 0) $
+          parens (prettyVar x <> comma <> prettyVar y)
+            <> ":"
+            <> prettyTermPrec 8 a
+            <+> "//"
+            <+> prettyTermPrec 0 e
   TSquash a ->
     brackets (prettyTermPrec 0 a)
   TAny v ty ->

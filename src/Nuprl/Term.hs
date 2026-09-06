@@ -82,6 +82,7 @@ module Nuprl.Term
   , opListInd
   , opSet
   , opIsect
+  , opQuotient
   , opSquash
   , opAny
   , opTrue
@@ -132,6 +133,7 @@ module Nuprl.Term
   , pattern TListInd
   , pattern TSet
   , pattern TIsect
+  , pattern TQuotient
   , pattern TSquash
   , pattern TAny
   , pattern TTrue
@@ -186,6 +188,7 @@ module Nuprl.Term
   , tListInd
   , tSet
   , tIsect
+  , tQuotient
   , tSquash
   , tAny
   , tTrue
@@ -502,9 +505,10 @@ opNil = "nil"
 opCons = "cons"
 opListInd = "list_ind"
 
-opSet, opIsect, opSquash, opAny :: OpId
+opSet, opIsect, opQuotient, opSquash, opAny :: OpId
 opSet = "set"
 opIsect = "isect"
+opQuotient = "quotient"
 opSquash = "squash"
 opAny = "any"
 
@@ -732,6 +736,13 @@ pattern TIsect a x b <-
   where
     TIsect a x b = TOp (mkOp opIsect) [bterm0 a, bterm1 x b]
 
+-- | Quotient type @(x,y):A // E@. Members are those of @A@; equality is @E@.
+pattern TQuotient :: Term -> Var -> Var -> Term -> Term
+pattern TQuotient a x y e <-
+  TOp (Operator (OpId "quotient") []) [BoundTerm [] a, BoundTerm [x, y] e]
+  where
+    TQuotient a x y e = TOp (mkOp opQuotient) [bterm0 a, BoundTerm [x, y] e]
+
 pattern TSquash :: Term -> Term
 pattern TSquash a <- TOp (Operator (OpId "squash") []) [BoundTerm [] a]
   where
@@ -904,6 +915,9 @@ tSet x a p = TSet a x p
 tIsect :: Var -> Term -> Term -> Term
 tIsect x a b = TIsect a x b
 
+tQuotient :: Var -> Var -> Term -> Term -> Term
+tQuotient x y a e = TQuotient a x y e
+
 tSquash :: Term -> Term
 tSquash = TSquash
 
@@ -957,6 +971,7 @@ isCanonicalType = \case
   TList {} -> True
   TSet {} -> True
   TIsect {} -> True
+  TQuotient {} -> True
   TSquash {} -> True
   TLt {} -> True
   _ -> False

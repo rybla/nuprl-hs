@@ -1,0 +1,245 @@
+-- | Quotient types, following Constable et al. §2.4 and §10.3.
+--
+-- `(x,y):A // E` has the members of `A`, but `a = b` holds when `E[a,b]`
+-- is inhabited. Formation requires `E` to be an equivalence relation.
+-- A function out of a quotient is well-defined only if it respects `E`
+-- (the successor on `ℤ/2ℤ` does; `max` does not).
+theory Quotients
+
+-- Integers modulo 2: the book's `N2`.
+abs EqMod2(x; y) == (x % 2) = (y % 2) ∈ Int
+abs Z2 == (x, y):Int // EqMod2(x; y)
+-- `max(a,b)` as a program on representatives (the book's counter-example).
+abs Max(a; b) == less a b b a
+
+soft EqMod2, Z2, Max
+
+--------------------------------------------------------------------------------
+-- The relation is an equivalence
+--------------------------------------------------------------------------------
+
+theorem eqmod2_refl :
+  ∀x:Int. EqMod2(x; x)
+proof
+  intro x
+  eq
+qed
+
+theorem eqmod2_sym :
+  ∀x:Int. ∀y:Int. EqMod2(x; y) → EqMod2(y; x)
+proof
+  intro x
+  intro y
+  intro p
+  elim 3
+  eq
+qed
+
+theorem eqmod2_trans :
+  ∀x:Int. ∀y:Int. ∀z:Int. EqMod2(x; y) → EqMod2(y; z) → EqMod2(x; z)
+proof
+  intro x
+  intro y
+  intro z
+  intro p
+  intro q
+  elim 4
+  hyp
+qed
+
+--------------------------------------------------------------------------------
+-- Formation: Z2 is a type
+--------------------------------------------------------------------------------
+
+theorem z2_type :
+  Z2 ∈ U{i}
+proof
+  eq THENL [
+    eq,
+    eq THEN auto,
+    eq,
+    elim 3 THEN eq,
+    elim 4 THEN hyp
+  ]
+qed
+
+--------------------------------------------------------------------------------
+-- Introduction: representatives
+--------------------------------------------------------------------------------
+
+theorem zero_in_z2 :
+  0 ∈ Z2
+proof
+  eq THEN auto
+qed
+
+theorem one_in_z2 :
+  1 ∈ Z2
+proof
+  eq THEN auto
+qed
+
+theorem two_in_z2 :
+  2 ∈ Z2
+proof
+  eq THEN auto
+qed
+
+-- Every integer is a representative.
+theorem int_to_z2 :
+  ∀n:Int. n ∈ Z2
+proof
+  intro n
+  eq THENL [hyp, hyp, lemma eqmod2_refl [n] THEN hyp]
+qed
+
+--------------------------------------------------------------------------------
+-- Equality in the quotient is the relation
+--------------------------------------------------------------------------------
+
+-- 0 and 2 are distinct integers but equal modulo 2.
+theorem zero_eq_two :
+  0 = 2 ∈ Z2
+proof
+  eq THEN auto
+qed
+
+theorem one_eq_three :
+  1 = 3 ∈ Z2
+proof
+  eq THEN auto
+qed
+
+theorem two_eq_four :
+  2 = 4 ∈ Z2
+proof
+  eq THEN auto
+qed
+
+-- 0 and 1 remain distinct.
+theorem zero_ne_one :
+  ¬(0 = 1 ∈ Z2)
+proof
+  intro p
+  elim 1
+  elim 2
+qed
+
+-- Unfolding quotient equality recovers the relation.
+theorem eq_to_rel :
+  ∀x:Int. ∀y:Int. x = y ∈ Z2 → EqMod2(x; y)
+proof
+  intro x
+  intro y
+  intro p
+  elim 3
+  hyp
+qed
+
+--------------------------------------------------------------------------------
+-- Operations: successor respects the relation; max does not
+--------------------------------------------------------------------------------
+
+-- Closed instances of successor on N2 (the book: if x ≡ y then x+1 ≡ y+1).
+theorem succ_0_2 :
+  0 + 1 = 2 + 1 ∈ Z2
+proof
+  eq THEN auto
+qed
+
+theorem succ_1_3 :
+  1 + 1 = 3 + 1 ∈ Z2
+proof
+  eq THEN auto
+qed
+
+-- The identity on representatives is a map Int → Z2, well-defined
+-- because integer equality is finer than ≡ (mod 2).
+theorem coerce_int :
+  Int → Z2
+proof
+  intro n
+  intro
+  hyp
+qed
+
+-- `max` does not respect ≡ (mod 2): 0 = 2 in Z2, but
+-- max(1,0) = 1 and max(1,2) = 2, and 1 ≠ 2 in Z2 (§2.4).
+theorem max_0 :
+  Max(1; 0) = 1 ∈ Int
+proof
+  eq
+qed
+
+theorem max_2 :
+  Max(1; 2) = 2 ∈ Int
+proof
+  eq
+qed
+
+theorem max_not_wd :
+  ¬(Max(1; 0) = Max(1; 2) ∈ Z2)
+proof
+  intro p
+  elim 1
+  elim 2
+qed
+
+--------------------------------------------------------------------------------
+-- Properties that ignore representatives: squash
+--------------------------------------------------------------------------------
+
+-- `0 < 1` is true and `2 < 1` is false, even though `0 = 2 ∈ Z2`.
+-- A predicate on Z2 must not distinguish them (§10.3).
+theorem zero_lt_one :
+  0 < 1
+proof
+  intro
+qed
+
+theorem not_two_lt_one :
+  ¬(2 < 1)
+proof
+  intro p
+  elim 1
+qed
+
+-- Squash of a respectful proposition is the right tool when only the
+-- truth value matters. `EqMod2(n; 0)` depends only on the class of n.
+theorem even_class :
+  EqMod2(2; 0)
+proof
+  eq
+qed
+
+theorem even_class_z2 :
+  2 = 0 ∈ Z2
+proof
+  eq THEN auto
+qed
+
+--------------------------------------------------------------------------------
+-- Inhabiting the type, and the indiscrete quotient
+--------------------------------------------------------------------------------
+
+-- A representative of `Int` is a member of `Z2`.
+theorem z2_inhabited :
+  Z2
+proof
+  intro
+  intro with 0
+qed
+
+-- Independent quotient `A // True`: every pair of elements is related, so
+-- all members of `A` become equal.
+theorem unit_quot_type :
+  (Int // True) ∈ U{i}
+proof
+  eq THENL [eq, eq, intro, intro, intro]
+qed
+
+theorem all_eq_in_true :
+  0 = 1 ∈ (Int // True)
+proof
+  eq THEN auto
+qed

@@ -51,12 +51,12 @@ data ExampleMeta = ExampleMeta
 exampleMetas :: [ExampleMeta]
 exampleMetas =
   [ ExampleMeta "core" "Core" "Logic encodings as named abstractions; True is Unit." Nothing
-  , ExampleMeta "functions" "Functions" "Identity, K, and composition. Extracts are λ-terms." Nothing
-  , ExampleMeta "logic" "Logic" "Intuitionistic tautologies: conjunction, disjunction, implication, ex falso." Nothing
-  , ExampleMeta "equality" "Equality" "Membership and reflexivity at Int, Unit, and a type variable." Nothing
-  , ExampleMeta "integers" "Integers" "Closed arithmetic, discharged by computation." Nothing
-  , ExampleMeta "lists" "Lists" "Nil introduction, including a polymorphic list." Nothing
-  , ExampleMeta "classical" "Classical" "Double-negation introduction, and DNE from excluded middle." Nothing
+  , ExampleMeta "functions" "Functions" "Combinators, products, coproducts, extensionality, universes, intersection." Nothing
+  , ExampleMeta "logic" "Logic" "Intuitionistic predicate logic, De Morgan, quantifiers, and squash." Nothing
+  , ExampleMeta "equality" "Equality" "Reflexivity, symmetry, transitivity, Leibniz, atoms, constructor discrimination." Nothing
+  , ExampleMeta "integers" "Integers" "Closed arithmetic, comparison, decidability, and integer induction." Nothing
+  , ExampleMeta "lists" "Lists" "Nil, cons, the list recursor, append, and list_ind." Nothing
+  , ExampleMeta "classical" "Classical" "DNE and stability recovered from excluded middle." Nothing
   , ExampleMeta
       "cardinality"
       "Cardinality"
@@ -67,6 +67,21 @@ exampleMetas =
       "Denotational semantics"
       "Streams of states; Abort, Skip, Assign, Concat, IF; depth-indexed syntax."
       (Just "Constable et al. §11.6")
+  , ExampleMeta
+      "intersection"
+      "Intersection"
+      "Family intersection ⋂x:A. B and independent A ∩ B. The extract ignores the index."
+      Nothing
+  , ExampleMeta
+      "sets"
+      "Sets"
+      "Set types {x:A | P}: comprehension, empty/full/singleton, Nat, Positive, Bool."
+      Nothing
+  , ExampleMeta
+      "quotients"
+      "Quotients"
+      "Quotient types (x,y):A // E. Integers mod 2; successor respects ≡, max does not."
+      (Just "Constable et al. §10.3")
   ]
 
 lookupMeta :: Text -> Maybe ExampleMeta
@@ -448,7 +463,23 @@ explainTerm lib t = case t of
   TDecide {} -> "Case analysis on a disjoint union (decide)."
   TList _ -> "The type of lists."
   TSet a x _ -> "Set type {" <> varText x <> ":" <> renderTerm a <> " | P}. Inhabitants are elements of A that satisfy P."
-  TIsect a x _ -> "Intersection type over " <> varText x <> ":" <> renderTerm a <> "."
+  TIsect a x _
+    | isDummyVar x ->
+        "Independent intersection A ∩ B, i.e. isect(A; _.B). A common realizer of B for every index of type A."
+    | otherwise ->
+        "Intersection type ⋂"
+          <> varText x
+          <> ":"
+          <> renderTerm a
+          <> ". B. A common realizer of every B[a]; the index is not computational."
+  TQuotient a x y _ ->
+    "Quotient type ("
+      <> varText x
+      <> ","
+      <> varText y
+      <> "):"
+      <> renderTerm a
+      <> " // E. Members of A, with equality given by E."
   TSquash _ -> "Squash [A]: A with computational content hidden. Inhabited by Ax when A is inhabited."
   TAny {} -> "any t T: a term of type T from a proof of Void (ex falso)."
   TIntEq {} -> "int_eq: boolean case split on integer equality."
@@ -508,7 +539,7 @@ explainTactic = \case
   TxIntro IxRight -> "intro right / right: choose the right injection of a disjoint union or disjunction."
   TxIntro (IxWitness _) -> "intro with t: supply a witness for ∃ / Σ / a set type."
   TxElim i Nothing -> "elim " <> tshow i <> ": eliminate hypothesis " <> tshow i <> " according to its type."
-  TxElim i (Just _) -> "elim " <> tshow i <> " with t: instantiate a Π / ∀ hypothesis."
+  TxElim i (Just _) -> "elim " <> tshow i <> " with t: instantiate a Π / ∀ / ⋂ hypothesis."
   TxHyp Nothing -> "hyp: search the hypotheses for one that proves the conclusion."
   TxHyp (Just i) -> "hyp " <> tshow i <> ": use hypothesis " <> tshow i <> "."
   TxAuto -> "auto: bounded proof search (hyp, eq, intro, elim, compute). Depth defaults to 6."

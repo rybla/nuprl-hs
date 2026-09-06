@@ -115,7 +115,7 @@ data IntroArg
     IntroLeft
   | -- | Right injection (union \/ disjunction).
     IntroRight
-  | -- | Witness for Σ \/ ∃ \/ set.
+  | -- | Witness for Σ \/ ∃ \/ set. Intersection does not take a witness.
     IntroWitness Term
   deriving stock (Eq, Show)
 
@@ -203,7 +203,26 @@ convType a b = case (a, b) of
   (TLt x1 y1, TLt x2 y2) -> computeEq x1 x2 && computeEq y1 y2
   (TSet a1 x1 p1, TSet a2 x2 p2) ->
     typesEq a1 a2 && typesEq (subst1 x1 (TVar x2) p1) p2
+  (TIsect a1 x1 b1, TIsect a2 x2 b2) ->
+    typesEq a1 a2
+      && typesEq
+        (if isDummyVar x1 then b1 else subst1 x1 (TVar x2) b1)
+        b2
+  (TQuotient a1 x1 y1 e1, TQuotient a2 x2 y2 e2) ->
+    typesEq a1 a2
+      && typesEq (substRel x1 y1 e1 (TVar x2) (TVar y2)) e2
   _ -> False
+
+-- | Instantiate a two-variable relation @E[x,y]@ at @t@ and @s@.
+substRel :: Var -> Var -> Term -> Term -> Term -> Term
+substRel x y e t s =
+  case (isDummyVar x, isDummyVar y) of
+    (True, True) -> e
+    (True, False) -> subst1 y s e
+    (False, True) -> subst1 x t e
+    (False, False)
+      | x == y -> subst1 x t e
+      | otherwise -> substMany [x, y] [t, s] e
 
 --------------------------------------------------------------------------------
 -- Hypothesis
@@ -239,6 +258,13 @@ ruleHyp i sq = do
                   success TAxiom
             TEqual t a b
               | typesEq t ty && computeEq a b && computeEq a (TVar x) ->
+                  success TAxiom
+            -- A quotient element is a representative of the base type.
+            TEqual t a b
+              | TQuotient base _ _ _ <- ty'
+              , typesEq t base
+                  && computeEq a (TVar x)
+                  && computeEq b (TVar x) ->
                   success TAxiom
             -- Universe cumulativity: x : U{i}  ⊢  x ∈ U{j}  for i ≤ j.
             TEqual (TUniverse j) a b
@@ -286,6 +312,13 @@ ruleIntro arg sq =
         (TSquash a, _) -> introSquash sq a
         (TSet a x p, IntroWitness t) -> introSet sq a x p t
         (TSet {}, _) -> failRule "intro" "set introduction requires a witness"
+        (TIsect a x b, IntroInfer mx) -> introIsect sq a x b mx
+        (TIsect {}, IntroWitness _) ->
+          failRule "intro" "intersection introduction assumes the index; use intro, not intro with"
+        (TIsect {}, _) ->
+          failRule "intro" "intersection introduction does not use left/right"
+        (TQuotient a _ _ _, IntroWitness t) -> introQuotientWitness sq a t
+        (TQuotient a _ _ _, _) -> introQuotient sq a
         (TList {}, IntroInfer Nothing) -> introNil sq
         (TList a, IntroWitness t) -> introCons sq a t
         (TUniverse {}, _) -> failRule "intro" "universes are introduced by formation / cumulativity, not intro"
@@ -402,6 +435,45 @@ introSet sq a x p t =
           , rrExtract = const t
           }
 
+-- | Quotient introduction: a representative of @A@ inhabits @A // E@.
+introQuotient :: Sequent -> Term -> Either RefineError RuleResult
+introQuotient sq a =
+  Right
+    RuleResult
+      { rrName = "intro"
+      , rrSubgoals = [LabeledGoal "main" sq {seqConcl = a}]
+      , rrExtract = \case
+          (e : _) -> e
+          [] -> TAxiom
+      }
+
+introQuotientWitness :: Sequent -> Term -> Term -> Either RefineError RuleResult
+introQuotientWitness sq a t =
+  Right
+    RuleResult
+      { rrName = "intro with"
+      , rrSubgoals = [LabeledGoal "wf" sq {seqConcl = TMember t a}]
+      , rrExtract = const t
+      }
+
+-- | Intersection introduction (NuPRL isect): the index is hidden, and the
+-- extract is the extract of @B[x]@, not a λ.
+introIsect :: Sequent -> Term -> Var -> Term -> Maybe Var -> Either RefineError RuleResult
+introIsect sq a x b mx =
+  let used = declaredVars sq
+      x0 = maybe (if isDummyVar x then Var "x" else x) id mx
+      x' = freshVar used x0
+      b' = if x' == x || isDummyVar x then b else subst1 x (TVar x') b
+      sub = sq {seqHyps = seqHyps sq ++ [hiddenHyp x' a], seqConcl = b'}
+   in Right
+        RuleResult
+          { rrName = "intro"
+          , rrSubgoals = [LabeledGoal "main" sub]
+          , rrExtract = \case
+              (e : _) -> e
+              [] -> TAxiom
+          }
+
 introNil :: Sequent -> Either RefineError RuleResult
 introNil _ =
   Right
@@ -503,6 +575,7 @@ eqByType sq ty' a' b' =
         -- Unit is proof-irrelevant and has a unique inhabitant (η).
         TUnit -> eqDone
         TInt
+          | computeEq a' b' -> eqDone
           | TNat n <- a'
           , TNat m <- b'
           , n == m ->
@@ -522,6 +595,24 @@ eqByType sq ty' a' b' =
         TSet aTy x p ->
           let p' = subst1 x a' p
            in subgoals [TEqual aTy a' b', p']
+        TIsect aTy x bTy ->
+          let used = declaredVars sq
+              x' = freshVar used (if isDummyVar x then Var "x" else x)
+              bTy' = if isDummyVar x then bTy else subst1 x (TVar x') bTy
+              sub =
+                sq
+                  { seqHyps = seqHyps sq ++ [hiddenHyp x' aTy]
+                  , seqConcl = TEqual bTy' a' b'
+                  }
+           in Right
+                RuleResult
+                  { rrName = "eq"
+                  , rrSubgoals = [LabeledGoal "ext" sub]
+                  , rrExtract = const TAxiom
+                  }
+        TQuotient aTy x y e ->
+          let e' = substRel x y e a' b'
+           in subgoals [TMember a' aTy, TMember b' aTy, e']
         TFunction aTy x bTy ->
           let used = declaredVars sq
               x' = freshVar used (if isDummyVar x then Var "x" else x)
@@ -665,6 +756,19 @@ eqInUniverse sq lvl a b =
                   , seqConcl = TEqual u p1' p2'
                   }
            in subgoals [goal (TEqual u a1 a2), LabeledGoal "wf" sub]
+        (TIsect a1 x1 b1, TIsect a2 x2 b2) ->
+          let used = declaredVars sq
+              x = freshVar used (if isDummyVar x1 then Var "x" else x1)
+              b1' = if isDummyVar x1 then b1 else subst1 x1 (TVar x) b1
+              b2' = if isDummyVar x2 then b2 else subst1 x2 (TVar x) b2
+              sub =
+                sq
+                  { seqHyps = seqHyps sq ++ [visibleHyp x a1]
+                  , seqConcl = TEqual u b1' b2'
+                  }
+           in subgoals [goal (TEqual u a1 a2), LabeledGoal "wf" sub]
+        (TQuotient a1 x1 y1 e1, TQuotient a2 x2 y2 e2) ->
+          quotientEqInUniverse sq u a1 x1 y1 e1 a2 x2 y2 e2
         (TLt a1 b1, TLt a2 b2) ->
           subgoals [goal (TEqual TInt a1 a2), goal (TEqual TInt b1 b2)]
         (a', b')
@@ -761,6 +865,10 @@ ruleElim i arg sq = do
     (TAll a y b, ElimWitness t) -> elimFun sq i x a y b t
     (TExists a y b, _) -> elimProd sq i x a y b
     (TSet a y p, _) -> elimSet sq i x a y p
+    (TIsect a y b, ElimWitness t) -> elimIsect sq i x a y b t
+    (TIsect {}, ElimBare) ->
+      failRule "elim" "intersection elimination requires a witness: elim i with t"
+    (TQuotient a y z e, _) -> elimQuotient sq i x a y z e
     (TLt lo hi, _) -> elimLt sq lo hi True
     (TSquash _, _) ->
       failRule "elim" "squash elimination is not extractable; use a squash-stable goal"
@@ -847,6 +955,19 @@ elimUnion sq _i d a b =
 
 elimEqual :: Sequent -> Int -> Var -> Term -> Term -> Term -> Either RefineError RuleResult
 elimEqual sq _i d t a b
+  | TQuotient _ x y e <- headForm t =
+      let used = declaredVars sq
+          p = freshVar used (Var "rel")
+          e' = substRel x y e a b
+          sub = sq {seqHyps = seqHyps sq ++ [visibleHyp p e']}
+       in Right
+            RuleResult
+              { rrName = "elim"
+              , rrSubgoals = [LabeledGoal "rel" sub]
+              , rrExtract = \case
+                  (ex : _) -> ex
+                  [] -> TAxiom
+              }
   | canonicalClash a b =
       Right
         RuleResult
@@ -952,6 +1073,127 @@ elimSet sq _i s a y p =
               (e : _) -> subst1 u (TVar s) e
               [] -> TVar s
           }
+
+-- | Instantiate an intersection at a point of the index type. The extract is
+-- the intersection inhabitant itself (the index is not computational).
+elimIsect :: Sequent -> Int -> Var -> Term -> Var -> Term -> Term -> Either RefineError RuleResult
+elimIsect sq _i s a y b t =
+  let b' = if isDummyVar y then b else subst1 y t b
+      used = declaredVars sq
+      z = freshVar used (Var "y")
+      subMain =
+        sq
+          { seqHyps = seqHyps sq ++ [visibleHyp z b']
+          }
+   in Right
+        RuleResult
+          { rrName = "elim with"
+          , rrSubgoals =
+              [ LabeledGoal "wf" sq {seqConcl = TMember t a}
+              , LabeledGoal "main" subMain
+              ]
+          , rrExtract = \case
+              (_ : e : _) -> subst1 z (TVar s) e
+              _ -> TVar s
+          }
+
+-- | Quotient elimination (NuPRL §8.3 / §10.3): the conclusion must be an
+-- equality, shown to respect @E@ on two representatives.
+elimQuotient :: Sequent -> Int -> Var -> Term -> Var -> Var -> Term -> Either RefineError RuleResult
+elimQuotient sq _i u a x y e =
+  case headForm (seqConcl sq) of
+    TEqual ty lhs rhs ->
+      let vs = freshVars (declaredVars sq) [Var "v", Var "w", Var "p"]
+       in case vs of
+            [v, w, p] ->
+              let e' = substRel x y e (TVar v) (TVar w)
+                  ty' = subst1 u (TVar v) ty
+                  lhs' = subst1 u (TVar v) lhs
+                  rhs' = subst1 u (TVar w) rhs
+                  sub =
+                    sq
+                      { seqHyps =
+                          seqHyps sq
+                            ++ [visibleHyp v a, visibleHyp w a, visibleHyp p e']
+                      , seqConcl = TEqual ty' lhs' rhs'
+                      }
+               in Right
+                    RuleResult
+                      { rrName = "elim"
+                      , rrSubgoals = [LabeledGoal "fun" sub]
+                      , rrExtract = \case
+                          (ex : _) -> ex
+                          [] -> TAxiom
+                      }
+            _ -> failRule "elim" "internal: freshVars"
+    _ ->
+      failRule "elim" "quotient elimination requires an equality conclusion (functionality)"
+
+-- | Equality of quotient types in a universe: equal bases, equivalent
+-- relations, and the left-hand relation is an equivalence (formation).
+quotientEqInUniverse ::
+  Sequent ->
+  Term ->
+  Term ->
+  Var ->
+  Var ->
+  Term ->
+  Term ->
+  Var ->
+  Var ->
+  Term ->
+  Either RefineError RuleResult
+quotientEqInUniverse sq u a1 x1 y1 e1 a2 x2 y2 e2 =
+  let vs = freshVars (declaredVars sq) [Var "x", Var "y", Var "z", Var "p", Var "q"]
+   in case vs of
+        [x, y, z, p, q] ->
+          let e1xy = substRel x1 y1 e1 (TVar x) (TVar y)
+              e2xy = substRel x2 y2 e2 (TVar x) (TVar y)
+              e1xx = substRel x1 y1 e1 (TVar x) (TVar x)
+              e1yx = substRel x1 y1 e1 (TVar y) (TVar x)
+              e1yz = substRel x1 y1 e1 (TVar y) (TVar z)
+              e1xz = substRel x1 y1 e1 (TVar x) (TVar z)
+              base = seqHyps sq
+              wfE =
+                sq
+                  { seqHyps = base ++ [visibleHyp x a1, visibleHyp y a1]
+                  , seqConcl = TEqual u e1xy e2xy
+                  }
+              refl =
+                sq
+                  { seqHyps = base ++ [visibleHyp x a1]
+                  , seqConcl = e1xx
+                  }
+              sym =
+                sq
+                  { seqHyps = base ++ [visibleHyp x a1, visibleHyp y a1, visibleHyp p e1xy]
+                  , seqConcl = e1yx
+                  }
+              trans =
+                sq
+                  { seqHyps =
+                      base
+                        ++ [ visibleHyp x a1
+                           , visibleHyp y a1
+                           , visibleHyp z a1
+                           , visibleHyp p e1xy
+                           , visibleHyp q e1yz
+                           ]
+                  , seqConcl = e1xz
+                  }
+           in Right
+                RuleResult
+                  { rrName = "eq"
+                  , rrSubgoals =
+                      [ LabeledGoal "wf" sq {seqConcl = TEqual u a1 a2}
+                      , LabeledGoal "rel" wfE
+                      , LabeledGoal "refl" refl
+                      , LabeledGoal "sym" sym
+                      , LabeledGoal "trans" trans
+                      ]
+                  , rrExtract = const TAxiom
+                  }
+        _ -> failRule "eq" "internal: freshVars"
 
 elimInt :: Sequent -> Int -> Var -> Either RefineError RuleResult
 elimInt sq _i n =

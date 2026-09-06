@@ -6,7 +6,8 @@
 --
 -- where each hypothesis is a (possibly hidden) typed declaration @x : T@.
 -- Hidden hypotheses — displayed in brackets — cannot appear in extracts; they
--- arise from squash elimination and similar rules (NuPRL §9.12).
+-- arise from squash and set elimination, and from intersection introduction
+-- (NuPRL §9.12).
 --
 -- All hypotheses declare distinct variables. A declaration whose variable
 -- begins with @\'%\'@ is /invisible/ and is omitted from pretty-printing.

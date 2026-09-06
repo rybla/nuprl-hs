@@ -1,0 +1,81 @@
+-- | Family intersection (`isect`) in computational type theory.
+--
+-- A term inhabits `⋂x:A. B` when it inhabits `B[a]` for every `a` in `A`,
+-- without depending computationally on the choice of `a`. Introduction hides
+-- the index; the extract is the common realizer, not a λ-abstraction.
+-- Independent `A ∩ B` is the dummy-binder case `isect(A; _.B)`.
+--
+-- Common elements of two types are a *set*, `{x:A | x ∈ B}`, not `A ∩ B`.
+theory Intersection
+
+--------------------------------------------------------------------------------
+-- Polymorphic identity, without a universe argument in the extract
+--------------------------------------------------------------------------------
+
+-- Contrast `∀A:U{i}. A → A`, whose extract is `λA. λx. x`.
+theorem poly_id :
+  ⋂A:U{i}. A → A
+proof
+  intro A
+  intro x
+  hyp
+qed
+
+theorem poly_id_member :
+  (λx. x) ∈ ⋂A:U{i}. A → A
+proof
+  auto
+qed
+
+--------------------------------------------------------------------------------
+-- Independent intersection A ∩ B
+--------------------------------------------------------------------------------
+
+theorem unit_cap_unit :
+  Unit ∩ Unit
+proof
+  intro
+  intro
+qed
+
+theorem zero_in_int_cap :
+  0 ∈ Int ∩ Int
+proof
+  auto
+qed
+
+-- A realizer of B is a realizer of A ∩ B; the index is not used.
+theorem cap_intro :
+  ∀A:U{i}. ∀B:U{i}. B → A ∩ B
+proof
+  intro A
+  intro B
+  intro b
+  intro
+  hyp
+qed
+
+-- To recover B from A ∩ B one must show A is inhabited.
+theorem cap_elim :
+  ∀A:U{i}. ∀B:U{i}. A → (A ∩ B) → B
+proof
+  intro A
+  intro B
+  intro a
+  intro f
+  elim 4 with a THENL [hyp, hyp]
+qed
+
+--------------------------------------------------------------------------------
+-- Instantiating a family
+--------------------------------------------------------------------------------
+
+theorem isect_inst :
+  ∀A:U{i}. ∀F:(A → U{i}). (⋂x:A. F x) → ∀a:A. F a
+proof
+  intro A
+  intro F
+  intro f
+  intro a
+  elim 3 with a THENL [hyp, hyp]
+qed
