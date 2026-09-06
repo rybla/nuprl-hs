@@ -1,0 +1,64 @@
+-- | Intuitionistic propositional tautologies.
+theory Logic
+
+theorem true_is_true :
+  True
+proof
+  intro
+qed
+
+theorem and_intro :
+  True ∧ True
+proof
+  intro
+  intro
+  intro
+qed
+
+theorem and_elim_left :
+  True ∧ True → True
+proof
+  intro p
+  elim 1
+  hyp 2
+qed
+
+theorem implies_k :
+  ∀A:U{i}. ∀B:U{i}. A → B → A
+proof
+  intro A
+  intro B
+  intro x
+  intro y
+  hyp 3
+qed
+
+-- Explosion / ex falso: from False anything follows.
+theorem false_elim :
+  ∀A:U{i}. False → A
+proof
+  intro A
+  intro p
+  elim 2
+qed
+
+-- Disjunction introduction.
+theorem or_intro_left :
+  ∀A:U{i}. ∀B:U{i}. A → A ∨ B
+proof
+  intro A
+  intro B
+  intro x
+  left
+  hyp
+qed
+
+theorem or_intro_right :
+  ∀A:U{i}. ∀B:U{i}. B → A ∨ B
+proof
+  intro A
+  intro B
+  intro y
+  right
+  hyp
+qed

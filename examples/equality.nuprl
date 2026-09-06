@@ -1,0 +1,29 @@
+-- | Equality and membership.
+theory Equality
+
+theorem zero_in_int :
+  0 ∈ Int
+proof
+  eq
+qed
+
+theorem one_eq_one :
+  1 = 1 ∈ Int
+proof
+  eq
+qed
+
+theorem axiom_in_unit :
+  Ax ∈ Unit
+proof
+  eq
+qed
+
+-- Reflexivity of equality at a type variable, from a declaration.
+theorem refl_at :
+  ∀A:U{i}. ∀x:A. x = x ∈ A
+proof
+  intro A
+  intro x
+  hyp
+qed

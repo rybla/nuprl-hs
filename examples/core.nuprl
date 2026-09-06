@@ -1,0 +1,25 @@
+-- | Core encodings of logic in computational type theory.
+--
+-- Propositions are types (the Curry–Howard / propositions-as-types
+-- correspondence used throughout NuPRL). The connectives below are the
+-- built-in soft encodings; this file records them as named abstractions
+-- so they appear in the library window.
+theory Core
+
+comment encodings "Logic is encoded as types."
+
+abs True == Unit
+abs False == Void
+abs Not(A) == A → Void
+abs And(A; B) == A × B
+abs Or(A; B) == A ⊎ B
+abs Implies(A; B) == A → B
+
+soft True, False, Not, And, Or, Implies
+
+-- Unit / True is inhabited by the canonical axiom.
+theorem true_intro :
+  True
+proof
+  intro
+qed

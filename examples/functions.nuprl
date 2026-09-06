@@ -1,0 +1,35 @@
+-- | Combinators of the simply-typed λ-calculus, proved in CTT.
+theory Functions
+
+-- The polymorphic identity. Extract: λA. λx. x
+theorem identity :
+  ∀A:U{i}. A → A
+proof
+  intro A
+  intro x
+  hyp
+qed
+
+-- The K combinator. Extract: λA. λB. λx. λy. x
+theorem const :
+  ∀A:U{i}. ∀B:U{i}. A → B → A
+proof
+  intro A
+  intro B
+  intro x
+  intro y
+  hyp 3
+qed
+
+-- Function composition. Extract: λA. λB. λC. λf. λg. λx. f (g x)
+theorem compose :
+  ∀A:U{i}. ∀B:U{i}. ∀C:U{i}. (B → C) → (A → B) → A → C
+proof
+  intro A
+  intro B
+  intro C
+  intro f
+  intro g
+  intro x
+  elim 5 with x THENL [hyp, elim 4 with y THENL [hyp, hyp]]
+qed

@@ -8,4 +8,19 @@ and this project adheres to the
 
 ## Unreleased
 
-## 0.1.0.0 - YYYY-MM-DD
+## 0.1.0.0 - 2026-09-06
+
+### Added
+
+- Computational type theory kernel: uniform terms, sequents, primitive
+  refinement rules, extracts.
+- Capture-avoiding substitution, α-equivalence, and first-order matching.
+- Lazy computation (β, arithmetic, spread, decide, list induction) and
+  soft unfold of the standard logic encodings.
+- LCF tactic language (`THEN`, `THENL`, `ORELSE`, `REPEAT`, `TRY`, `auto`,
+  `arith`, `intro`, `elim`, `hyp`, `eq`, …).
+- Text-based theory files (`.nuprl`) and a pure checker that replays
+  tactic scripts.
+- CLI (`nuprl`) with REPL, `check`, `extract`, `eval`, `compute`.
+- Example theories under `examples/`.
+- Tasty test suite organised by implementation stage.

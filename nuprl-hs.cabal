@@ -6,38 +6,109 @@ cabal-version: 2.2
 
 name:           nuprl-hs
 version:        0.1.0.0
-description:    Please see the README on GitHub at <https://github.com/githubuser/nuprl-hs#readme>
-homepage:       https://github.com/githubuser/nuprl-hs#readme
-bug-reports:    https://github.com/githubuser/nuprl-hs/issues
-author:         Author name here
-maintainer:     example@example.com
-copyright:      2026 Author name here
+synopsis:       A modern Haskell implementation of the NuPRL proof development system
+description:    nuprl-hs is a modern, purely-functional implementation of the NuPRL
+                computational type theory (CTT) proof development system. It provides a
+                refinement theorem prover, a tactic language, a theory library, and a
+                complete command-line interface.
+category:       Theorem Provers
+homepage:       https://github.com/rybla/nuprl-hs#readme
+bug-reports:    https://github.com/rybla/nuprl-hs/issues
+author:         Henry Blanchette
+maintainer:     contact@rybl.net
+copyright:      2026 Henry Blanchette
 license:        BSD-3-Clause
 license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
     README.md
     CHANGELOG.md
+    docs/CLI.md
+    docs/placeholder.md
+    docs/TACTICS.md
+    docs/TYPE-THEORY.md
+    examples/classical.nuprl
+    examples/core.nuprl
+    examples/equality.nuprl
+    examples/functions.nuprl
+    examples/integers.nuprl
+    examples/lists.nuprl
+    examples/logic.nuprl
+data-files:
+    examples/classical.nuprl
+    examples/core.nuprl
+    examples/equality.nuprl
+    examples/functions.nuprl
+    examples/integers.nuprl
+    examples/lists.nuprl
+    examples/logic.nuprl
 
 source-repository head
   type: git
-  location: https://github.com/githubuser/nuprl-hs
+  location: https://github.com/rybla/nuprl-hs
 
 library
   exposed-modules:
-      Lib
+      Nuprl
+      Nuprl.Error
+      Nuprl.Term
+      Nuprl.Subst
+      Nuprl.Pretty
+      Nuprl.Parse
+      Nuprl.Compute
+      Nuprl.Sequent
+      Nuprl.Rule
+      Nuprl.Proof
+      Nuprl.Tactic
+      Nuprl.Library
+      Nuprl.Check
+      Nuprl.Command
+      Nuprl.REPL
+      Nuprl.CLI
   other-modules:
       Paths_nuprl_hs
   autogen-modules:
       Paths_nuprl_hs
   hs-source-dirs:
       src
+  default-extensions:
+      DerivingStrategies
+      DeriveGeneric
+      DeriveFunctor
+      DeriveFoldable
+      DeriveTraversable
+      FlexibleContexts
+      FlexibleInstances
+      GeneralizedNewtypeDeriving
+      ImportQualifiedPost
+      LambdaCase
+      NamedFieldPuns
+      OverloadedStrings
+      PatternSynonyms
+      ScopedTypeVariables
+      StrictData
+      TupleSections
+      TypeApplications
+      ViewPatterns
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
-      base >=4.7 && <5
+      ansi-terminal >=1.1
+    , base >=4.17 && <5
+    , containers >=0.6
+    , directory >=1.3
+    , filepath >=1.4
+    , haskeline >=0.8
+    , megaparsec >=9.6
+    , mtl >=2.3
+    , optparse-applicative >=0.18
+    , parser-combinators >=1.3
+    , prettyprinter >=1.7
+    , prettyprinter-ansi-terminal >=1.1
+    , text >=2.0
+    , transformers >=0.6
   default-language: Haskell2010
 
-executable nuprl-hs-exe
+executable nuprl
   main-is: Main.hs
   other-modules:
       Paths_nuprl_hs
@@ -45,23 +116,98 @@ executable nuprl-hs-exe
       Paths_nuprl_hs
   hs-source-dirs:
       app
+  default-extensions:
+      DerivingStrategies
+      DeriveGeneric
+      DeriveFunctor
+      DeriveFoldable
+      DeriveTraversable
+      FlexibleContexts
+      FlexibleInstances
+      GeneralizedNewtypeDeriving
+      ImportQualifiedPost
+      LambdaCase
+      NamedFieldPuns
+      OverloadedStrings
+      PatternSynonyms
+      ScopedTypeVariables
+      StrictData
+      TupleSections
+      TypeApplications
+      ViewPatterns
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base >=4.7 && <5
+      ansi-terminal >=1.1
+    , base >=4.17 && <5
+    , containers >=0.6
+    , directory >=1.3
+    , filepath >=1.4
+    , haskeline >=0.8
+    , megaparsec >=9.6
+    , mtl >=2.3
     , nuprl-hs
+    , optparse-applicative >=0.18
+    , parser-combinators >=1.3
+    , prettyprinter >=1.7
+    , prettyprinter-ansi-terminal >=1.1
+    , text >=2.0
+    , transformers >=0.6
   default-language: Haskell2010
 
 test-suite nuprl-hs-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      ComputeTests
+      ExampleTests
+      ParseTests
+      RuleTests
+      SubstTests
+      TacticTests
+      TermTests
       Paths_nuprl_hs
   autogen-modules:
       Paths_nuprl_hs
   hs-source-dirs:
       test
+  default-extensions:
+      DerivingStrategies
+      DeriveGeneric
+      DeriveFunctor
+      DeriveFoldable
+      DeriveTraversable
+      FlexibleContexts
+      FlexibleInstances
+      GeneralizedNewtypeDeriving
+      ImportQualifiedPost
+      LambdaCase
+      NamedFieldPuns
+      OverloadedStrings
+      PatternSynonyms
+      ScopedTypeVariables
+      StrictData
+      TupleSections
+      TypeApplications
+      ViewPatterns
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base >=4.7 && <5
+      QuickCheck >=2.14
+    , ansi-terminal >=1.1
+    , base >=4.17 && <5
+    , containers >=0.6
+    , directory >=1.3
+    , filepath >=1.4
+    , haskeline >=0.8
+    , megaparsec >=9.6
+    , mtl >=2.3
     , nuprl-hs
+    , optparse-applicative >=0.18
+    , parser-combinators >=1.3
+    , prettyprinter >=1.7
+    , prettyprinter-ansi-terminal >=1.1
+    , tasty >=1.5
+    , tasty-hunit >=0.10
+    , tasty-quickcheck >=0.10
+    , text >=2.0
+    , transformers >=0.6
   default-language: Haskell2010

@@ -1,6 +1,6 @@
 module Main (main) where
 
-import Lib
+import Nuprl.CLI (cliMain)
 
 main :: IO ()
-main = someFunc
+main = cliMain

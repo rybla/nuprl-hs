@@ -1,0 +1,27 @@
+-- | Intuitionistic theorems that sit next to classical principles.
+--
+-- NuPRL is constructive: excluded middle is not a primitive. Classical
+-- reasoning is recovered by assuming `∀P:U{i}. P ∨ ¬P` as a hypothesis
+-- (see the NuPRL manual §9.12).
+theory Classical
+
+-- Double negation introduction is constructive.
+theorem dne_intro :
+  ∀A:U{i}. A → ¬¬A
+proof
+  intro A
+  intro x
+  intro p
+  elim 3
+  hyp
+qed
+
+-- From a decision we can eliminate double negation.
+theorem dne_from_em :
+  ∀A:U{i}. (A ∨ ¬A) → ¬¬A → A
+proof
+  intro A
+  intro em
+  intro nna
+  elim 2 THENL [hyp, elim 3 with v THENL [hyp, elim 5]]
+qed

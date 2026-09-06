@@ -1,0 +1,16 @@
+-- | Lists: nil introduction and a trivial membership.
+theory Lists
+
+theorem nil_is_list :
+  [] ∈ List Int
+proof
+  eq
+qed
+
+-- The empty list inhabits List A for any element type.
+theorem nil_poly :
+  ∀A:U{i}. [] ∈ List A
+proof
+  intro A
+  intro
+qed

@@ -1,0 +1,26 @@
+-- | Closed integer arithmetic, discharged by computation.
+theory Integers
+
+theorem one_plus_one :
+  1 + 1 = 2 ∈ Int
+proof
+  eq
+qed
+
+theorem two_times_three :
+  2 * 3 = 6 ∈ Int
+proof
+  eq
+qed
+
+theorem ten_minus_four :
+  10 - 4 = 6 ∈ Int
+proof
+  eq
+qed
+
+theorem arith_chain :
+  (1 + 2) * 3 = 9 ∈ Int
+proof
+  arith
+qed
