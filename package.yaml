@@ -100,6 +100,16 @@ executables:
     dependencies:
       - nuprl-hs
 
+  build-website:
+    main: Main.hs
+    source-dirs: build-website
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+    dependencies:
+      - nuprl-hs
+
 tests:
   nuprl-hs-test:
     main: Spec.hs

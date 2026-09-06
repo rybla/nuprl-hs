@@ -741,12 +741,12 @@ ruleElim i arg sq = do
     (TInt, _) -> elimInt sq i x
     (TList a, _) -> elimList sq i x a
     (TFalse, _) -> elimVoid sq x
-    (TNot p, arg)
+    (TNot p, a)
       | TLt lo hi <- headForm p ->
           case elimLt sq lo hi False of
             Right r -> Right r
             Left _
-              | ElimWitness t <- arg ->
+              | ElimWitness t <- a ->
                   elimFun sq i x p dummyVar TVoid t
             Left _ ->
               elimFunBackchain sq i x p TVoid
