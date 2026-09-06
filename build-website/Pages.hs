@@ -55,7 +55,6 @@ siteFooter =
     [("class", "site")]
     ( txt "nuprl-hs · a modern Haskell NuPRL · "
         <> el "a" [("href", "https://github.com/rybla/nuprl-hs")] (txt "source")
-        <> txt " · pages are static; all analysis is precomputed"
     )
 
 semanticKey :: Html
@@ -108,7 +107,7 @@ hero =
       [("class", "lede")]
       ( txt "A modern, purely functional implementation of "
           <> el "em" [] (txt "NuPRL")
-          <> txt ": computational type theory as a refinement theorem prover, with a tactic language, a text-based theory library, and a command-line interface."
+          <> txt ": computational type theory as a refinement theorem prover, with a tactic language, theory library, and a command-line interface."
       )
 
 links :: Html
