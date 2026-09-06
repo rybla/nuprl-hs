@@ -15,6 +15,7 @@ stack exec nuprl -- check examples/logic.nuprl
 | `integers.nuprl` | Closed arithmetic by computation |
 | `lists.nuprl` | `[] ∈ List A` |
 | `classical.nuprl` | `A → ¬¬A`, and DNE from excluded middle |
+| `cardinality.nuprl` | Equipollence, finite segments, pigeonhole (§11.3 of the Nuprl book) |
 
 Theorems are checked by replaying their `proof` scripts on the kernel. A
 failing script is a check error, not a silent skip.

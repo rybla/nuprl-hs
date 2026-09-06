@@ -383,6 +383,8 @@ helpTactics =
     , "  eq               canonical equality / membership"
     , "  arith            closed integer equalities"
     , "  D [N]            decompose clause N (0 = conclusion)"
+    , "  decide a = b     case analysis on integer equality"
+    , "  decide t         case analysis on a union-typed term"
     , "  t1 THEN t2       run t2 on every new subgoal"
     , "  t1 ORELSE t2     backtracking"
     , "  REPEAT t         apply until failure"
@@ -400,7 +402,7 @@ helpTerms =
     , "  a = b ∈ A        a ∈ A            ¬A"
     , "  ∀x:A. B          ∃x:A. B          A ⇒ B"
     , "  {x:A | P}        [A]   (squash)   List A"
-    , "  n :: ns          []               1 + 2 * 3"
+    , "  a < b            a ≤ b            n :: ns    []"
     ]
 
 helpRules :: Text
@@ -429,6 +431,8 @@ helpExamples =
     , "  examples/equality.nuprl     equality reasoning"
     , "  examples/integers.nuprl     arithmetic"
     , "  examples/lists.nuprl        lists and induction"
+    , "  examples/classical.nuprl    DNE from excluded middle"
+    , "  examples/cardinality.nuprl  equipollence and pigeonhole"
     , ""
     , "Load one with:  nuprl check examples/logic.nuprl"
     ]

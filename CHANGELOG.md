@@ -8,6 +8,17 @@ and this project adheres to the
 
 ## Unreleased
 
+### Added
+
+- Integer less-than as a type (`a < b`); closed instances compute to
+  `Unit` / `Void`.
+- Set-membership, application congruence, and constructor discrimination
+  in the equality / elimination rules.
+- `decide a = b` (decidable integer equality) and `decide t` (cases on a
+  union).
+- Library abstractions unfold in the refiner.
+- Example theory `examples/cardinality.nuprl` (Constable et al. §11.3).
+
 ## 0.1.0.0 - 2026-09-06
 
 ### Added

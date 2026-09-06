@@ -85,6 +85,9 @@ prettyTermPrec prec t = case t of
   TOr a b ->
     paren (prec > 2) $
       prettyTermPrec 3 a <+> "∨" <+> prettyTermPrec 2 b
+  TLt a b ->
+    paren (prec > 4) $
+      prettyTermPrec 5 a <+> "<" <+> prettyTermPrec 5 b
   TAnd a b ->
     paren (prec > 3) $
       prettyTermPrec 4 a <+> "∧" <+> prettyTermPrec 3 b

@@ -15,7 +15,7 @@ module Nuprl.Parse
 
 import Control.Monad (void, when)
 import Control.Monad.Combinators.Expr
-import Data.Char (isAlphaNum)
+import Data.Char (isAlphaNum, isUpper)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Void (Void)
@@ -218,24 +218,51 @@ pattern LSucc e = LAdd e 1
 --------------------------------------------------------------------------------
 
 pTerm :: Parser Term
-pTerm = pLam <|> pBinderTerm <|> pEqTerm
+pTerm = pConnective
 
--- | Equality @a = b ∈ T@ and membership @a ∈ T@, parsed as a suffix of an
--- expression so they bind looser than connectives only when written at the
--- top of an expression. Users should parenthesize otherwise.
+-- | Propositional connectives bind looser than equality, which binds looser
+-- than arithmetic and @<@. So @x = y ∈ Int ∨ P@ is a disjunction of an
+-- equality, not an equality at a union type. Binders are atoms, so
+-- @A → ∀x:B. C@ parses.
+pConnective :: Parser Term
+pConnective = makeExprParser pConnectiveAtom opsProp
+  where
+    opsProp =
+      [ [InfixR (tTimes <$ (symbol "×" <|> tryAndProd))]
+      , [InfixR (TAnd <$ (symbol "∧" <|> symbol "/\\"))]
+      , [InfixR (TUnion <$ (symbol "⊎" <|> symbol "+.")), InfixR (TOr <$ (symbol "∨" <|> symbol "\\/"))]
+      , [InfixR (tArrow <$ arrowSym), InfixR (TImplies <$ (symbol "⇒" <|> symbol "=>"))]
+      , [InfixR (TIff <$ (symbol "⇔" <|> symbol "<=>"))]
+      ]
+
+pConnectiveAtom :: Parser Term
+pConnectiveAtom = pLam <|> pBinderTerm <|> pEqTerm
+
+-- | The type annotation of @a = b ∈ T@ includes type formers (@⊎@, @×@, @→@)
+-- but not propositional @∨@/@∧@/@⇒@, so @x = y ∈ Int ∨ P@ stays a disjunction
+-- while @a = b ∈ True ⊎ True@ is an equality at a union type.
+pTypeArg :: Parser Term
+pTypeArg = makeExprParser pArith typeOps
+  where
+    typeOps =
+      [ [InfixR (tTimes <$ symbol "×")]
+      , [InfixR (TUnion <$ (symbol "⊎" <|> symbol "+."))]
+      ]
+
+-- | Equality @a = b ∈ T@ and membership @a ∈ T@.
 pEqTerm :: Parser Term
 pEqTerm = do
-  a <- pExpr
+  a <- pArith
   choice
     [ try $ do
         _ <- symbol "="
-        b <- pExpr
+        b <- pArith
         _ <- symbol "∈"
-        ty <- pExpr
+        ty <- pTypeArg
         pure (TEqual ty a b)
     , try $ do
         _ <- symbol "∈"
-        ty <- pExpr
+        ty <- pTypeArg
         pure (TMember a ty)
     , pure a
     ]
@@ -306,18 +333,17 @@ arrowSym :: Parser Text
 arrowSym = symbol "→" <|> symbol "->"
 
 pExpr :: Parser Term
-pExpr = makeExprParser pApp ops
+pExpr = pConnective
+
+pArith :: Parser Term
+pArith = makeExprParser pApp ops
   where
     ops =
       [ [Prefix (foldr (.) id <$> some (TNot <$ (symbol "¬" <|> symbol "~")))]
       , [InfixR (TCons <$ symbol "::")]
       , [InfixL (TMul <$ tryMul), InfixL (TDiv <$ symbol "/")]
       , [InfixL (TAdd <$ tryPlus), InfixL (TSub <$ tryMinus)]
-      , [InfixR (tTimes <$ (symbol "×" <|> tryAndProd))]
-      , [InfixR (TAnd <$ (symbol "∧" <|> symbol "/\\"))]
-      , [InfixR (TUnion <$ (symbol "⊎" <|> symbol "+.")), InfixR (TOr <$ (symbol "∨" <|> symbol "\\/"))]
-      , [InfixR (tArrow <$ arrowSym), InfixR (TImplies <$ (symbol "⇒" <|> symbol "=>"))]
-      , [InfixR (TIff <$ (symbol "⇔" <|> symbol "<=>"))]
+      , [InfixN (TLt <$ tryLt), InfixN (tLe <$ tryLe)]
       ]
 
 tryMul :: Parser Text
@@ -358,6 +384,21 @@ tryPlus = symbol "+" -- union is lower (looser) so + in arithmetic binds tighter
 
 tryMinus :: Parser Text
 tryMinus = symbol "-"
+
+-- | @a < b@ as a type; do not steal @<=@, @<>@, or pair syntax @<a, b>@
+-- (pairs are parsed as atoms).
+tryLt :: Parser Text
+tryLt = try . lexeme $ do
+  _ <- char '<'
+  notFollowedBy (char '>' <|> char '=')
+  pure "<"
+
+tryLe :: Parser Text
+tryLe = symbol "≤" <|> symbol "<="
+
+-- | @a ≤ b@ is the type @a < b + 1@.
+tLe :: Term -> Term -> Term
+tLe a b = TLt a (TAdd b (TNat 1))
 
 pArrTerm :: Parser Term
 pArrTerm = pExpr
@@ -432,7 +473,7 @@ pVar :: Parser Var
 pVar = Var <$> identifier <|> (Var "_" <$ symbol "_")
 
 pPair :: Parser Term
-pPair = angles $ do
+pPair = try . angles $ do
   a <- pTerm
   _ <- symbol ","
   TPair a <$> pTerm
@@ -537,12 +578,28 @@ pListInd = do
     step <- pTerm
     pure (TListInd lst base x xs ih step)
 
--- | Uniform syntax: @opid{params}(bterms)@ or @opid(bterms)@.
+-- | Uniform syntax: @opid{params}(bterms)@ or @Opid(bterms)@.
+--
+-- A lowercase identifier followed by a single unbinding argument, as in
+-- @g (f x)@, is juxtaposition (application), not a uniform operator. Use a
+-- capitalised name (@Fin(n)@), a parameter brace (@id{}(x)@), a semicolon
+-- (@Equipollent(A; B)@), or an explicit binder (@opid(x.t)@) for operators.
 pUniformOp :: Parser Term
 pUniformOp = try $ do
-  oid <- OpId <$> identifier
+  oidTxt <- identifier
+  let oid = OpId oidTxt
   params <- option [] (braces (pParam `sepBy` symbol ";"))
   bts <- parens (pBound `sepBy` symbol ";")
+  let capitalized = case T.uncons oidTxt of
+        Just (c, _) -> isUpper c
+        Nothing -> False
+      looksLikeApp =
+        null params
+          && not capitalized
+          && length bts == 1
+          && all (null . btVars) bts
+  when looksLikeApp $
+    fail "application, not a uniform operator"
   pure (TOp (Operator oid params) bts)
 
 pParam :: Parser Parameter
@@ -649,6 +706,7 @@ tacticKws =
   , "lemma"
   , "thin"
   , "exists"
+  , "decide"
   , "REPEAT"
   , "TRY"
   , "D"
@@ -695,6 +753,7 @@ pTacticAtom =
     , pLemma
     , pThin
     , pD
+    , pDecideTac
     ]
 
 pIntro :: Parser TacticExpr
@@ -757,6 +816,20 @@ pD :: Parser TacticExpr
 pD = do
   _ <- void (symbol "D") <|> keyword "d"
   TxD <$> optional (fromInteger <$> natural)
+
+-- | @decide a = b@ (integer equality) or @decide t@ (cases on a union).
+pDecideTac :: Parser TacticExpr
+pDecideTac = do
+  keyword "decide"
+  a <- pExpr
+  choice
+    [ do
+        _ <- symbol "="
+        b <- pExpr
+        _ <- optional (void (symbol "∈" *> pExpr) <|> void (keyword "in" *> pExpr))
+        pure (TxDecideInt a b)
+    , pure (TxCases a)
+    ]
 
 --------------------------------------------------------------------------------
 -- Theory files

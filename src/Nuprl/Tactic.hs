@@ -37,6 +37,8 @@ module Nuprl.Tactic
   , tacExact
   , tacUnfold
   , tacReduce
+  , tacDecideInt
+  , tacCases
     -- * Automation
   , tacAuto
   , tacAutoN
@@ -222,6 +224,14 @@ tacAssumption = tacHypAny
 tacExact :: Term -> Tactic
 tacExact t = tacCut t (Var "h") `tacThen` tacIntro (IntroWitness t) `tacThen` tacHypAny
 
+-- | Case analysis on integer equality.
+tacDecideInt :: Term -> Term -> Tactic
+tacDecideInt a b = primTac "decide" (RuleDecideInt a b)
+
+-- | Case analysis on a term of union type.
+tacCases :: Term -> Tactic
+tacCases t = primTac "decide" (RuleCases t)
+
 -- | Unfold a soft encoding (or compute) at the conclusion.
 tacUnfold :: Tactic
 tacUnfold = tacCompute `tacOrElse` tacId
@@ -261,7 +271,7 @@ tacAutoN n
   | n <= 0 = tacHypAny `tacOrElse` tacEq `tacOrElse` trivialIntro
   | otherwise =
       tacHypAny
-        `tacOrElse` tacEq
+        `tacOrElse` (tacEq `tacThen` tacAutoN (n - 1))
         `tacOrElse` (trivialIntro `tacThen` tacAutoN (n - 1))
         `tacOrElse` (tacIntro (IntroInfer Nothing) `tacThen` tacAutoN (n - 1))
         `tacOrElse` elimFirst `tacThenMaybe` n
@@ -345,6 +355,8 @@ data TacticExpr
   | TxCut Term (Maybe Var)
   | TxLemma Name [Term]
   | TxThin Int
+  | TxDecideInt Term Term
+  | TxCases Term
   | TxThen TacticExpr TacticExpr
   | TxThenL TacticExpr [TacticExpr]
   | TxOrElse TacticExpr TacticExpr
@@ -391,6 +403,8 @@ evalTactic = \case
   TxCut ty mx -> tacCut ty (maybe (Var "h") id mx)
   TxLemma n args -> tacLemma n args
   TxThin i -> tacThin i
+  TxDecideInt a b -> tacDecideInt a b
+  TxCases t -> tacCases t
   TxThen a b -> evalTactic a `tacThen` evalTactic b
   TxThenL a bs -> tacThenL (evalTactic a) (map evalTactic bs)
   TxOrElse a b -> evalTactic a `tacOrElse` evalTactic b
@@ -431,6 +445,8 @@ prettyTacticExpr = \case
   TxCut {} -> "cut …"
   TxLemma n _ -> "lemma " <> n
   TxThin i -> "thin " <> tshow i
+  TxDecideInt {} -> "decide … = …"
+  TxCases {} -> "decide …"
   TxThen a b -> prettyTacticExpr a <> " THEN " <> prettyTacticExpr b
   TxThenL a _ -> prettyTacticExpr a <> " THENL …"
   TxOrElse a b -> prettyTacticExpr a <> " ORELSE " <> prettyTacticExpr b

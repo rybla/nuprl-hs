@@ -66,4 +66,34 @@ tacticTests =
         case prove coreLibrary g tx of
           Left e -> assertFailure (show (prettyError e))
           Right _ -> pure ()
+    , testCase "0 < 1 by computation" $ do
+        let g = mustParse "0 < 1"
+            tx = mustTac "intro"
+        case prove coreLibrary g tx of
+          Left e -> assertFailure (show (prettyError e))
+          Right _ -> pure ()
+    , testCase "set membership 1 ∈ {s:Int | 0 < s}" $ do
+        let g = mustParse "1 ∈ {s:Int | 0 < s}"
+            tx = mustTac "auto"
+        case prove coreLibrary g tx of
+          Left e -> assertFailure (show (prettyError e))
+          Right _ -> pure ()
+    , testCase "integer equality is decidable" $ do
+        let g = mustParse "∀x:Int. ∀y:Int. x = y ∈ Int ∨ ¬(x = y ∈ Int)"
+            tx = mustTac "intro x; intro y; decide x = y THENL [left THEN hyp, right THEN hyp]"
+        case prove coreLibrary g tx of
+          Left e -> assertFailure (show (prettyError e))
+          Right _ -> pure ()
+    , testCase "inl and inr are disjoint" $ do
+        let g = mustParse "¬(inl Ax = inr Ax ∈ True ⊎ True)"
+            tx = mustTac "intro p; elim 1"
+        case prove coreLibrary g tx of
+          Left e -> assertFailure (show (prettyError e))
+          Right _ -> pure ()
+    , testCase "equipollence of a type with itself" $ do
+        let g = mustParse "∀A:U{i}. ∃f:(A → A). ∃g:(A → A). (∀x:A. g (f x) = x ∈ A) ∧ (∀y:A. f (g y) = y ∈ A)"
+            tx = mustTac "intro A; exists (λx. x) THENL [auto, exists (λx. x) THENL [auto, split THENL [intro x THEN auto, intro y THEN auto]]]"
+        case prove coreLibrary g tx of
+          Left e -> assertFailure (show (prettyError e))
+          Right _ -> pure ()
     ]

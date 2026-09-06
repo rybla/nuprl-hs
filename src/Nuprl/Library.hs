@@ -32,7 +32,7 @@ import Data.Text qualified as T
 
 import Nuprl.Error
 import Nuprl.Pretty (renderTerm)
-import Nuprl.Rule (LemmaEnv (..))
+import Nuprl.Rule (AbsDef (..), LemmaEnv (..))
 import Nuprl.Subst (substMany)
 import Nuprl.Tactic (TacticExpr (..))
 import Nuprl.Term
@@ -121,13 +121,20 @@ insertObject n obj lib =
 -- | Statements of complete theorems, for the refiner.
 lemmaEnv :: Library -> LemmaEnv
 lemmaEnv lib =
-  LemmaEnv $
-    Map.mapMaybe
-      ( \case
-          ObjTheorem th | thmStatus th == StatusComplete -> Just (thmGoal th)
-          _ -> Nothing
-      )
-      (libObjects lib)
+  LemmaEnv
+    { unLemmaEnv =
+        Map.mapMaybe
+          ( \case
+              ObjTheorem th | thmStatus th == StatusComplete -> Just (thmGoal th)
+              _ -> Nothing
+          )
+          (libObjects lib)
+    , unAbsEnv =
+        Map.fromList
+          [ (absOpId a, AbsDef (absFormals a) (absRhs a))
+          | ObjAbs a <- Map.elems (libObjects lib)
+          ]
+    }
 
 libraryTheorems :: Library -> [(Name, Theorem)]
 libraryTheorems lib =

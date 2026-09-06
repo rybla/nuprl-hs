@@ -126,6 +126,8 @@ rrNameDummy = \case
   RuleLemma n _ -> "lemma " <> n
   RuleThin i -> "thin " <> tshow i
   RuleCumulativity _ -> "cumulativity"
+  RuleDecideInt {} -> "decide"
+  RuleCases {} -> "decide"
 
 -- | Extract the computational content of a complete proof.
 extractProof :: Proof -> Either RefineError Term

@@ -76,4 +76,24 @@ parseTests =
         case t of
           TNot (TNot TTrue) -> pure ()
           other -> assertFailure (show other)
+    , testCase "integer less-than type" $ do
+        let t = mustParse "0 < 1"
+        case t of
+          TLt (TNat 0) (TNat 1) -> pure ()
+          other -> assertFailure (show other)
+    , testCase "set type" $ do
+        let t = mustParse "{s:Int | 0 < s ∧ s < n + 1}"
+        case t of
+          TSet TInt (Var "s") _ -> pure ()
+          other -> assertFailure (show other)
+    , testCase "juxtaposition is application, not a uniform operator" $ do
+        let t = mustParse "g (f x)"
+        case t of
+          TApply (TVar (Var "g")) (TApply (TVar (Var "f")) (TVar (Var "x"))) -> pure ()
+          other -> assertFailure (show other)
+    , testCase "capitalised uniform operator" $ do
+        let t = mustParse "Fin(n)"
+        case t of
+          TOp (Operator (OpId "Fin") []) [BoundTerm [] (TVar (Var "n"))] -> pure ()
+          other -> assertFailure (show other)
     ]

@@ -34,6 +34,8 @@ incomplete) proof. Combinators are the standard LCF ones.
 | `assumption` | Synonym for `hyp` |
 | `idtac` | Do nothing |
 | `fail` | Fail |
+| `decide a = b` | Case analysis on integer equality |
+| `decide t` | Case analysis on a union-typed term |
 
 ## Combinators
 

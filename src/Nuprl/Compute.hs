@@ -68,6 +68,12 @@ stepPrimitive = \case
     case (whnf a, whnf b) of
       (TNat n, TNat m) -> Just (if n < m then th else el)
       _ -> Nothing
+  TLt a b ->
+    case (whnf a, whnf b) of
+      (TNat n, TNat m) -> Just (if n < m then TUnit else TVoid)
+      (a', b')
+        | not (alphaEq a a') || not (alphaEq b b') -> Just (TLt a' b')
+        | otherwise -> Nothing
   TAtomEq a b th el ->
     case (whnf a, whnf b) of
       (TToken s, TToken t) -> Just (if s == t then th else el)
@@ -159,6 +165,27 @@ unfoldSoftDeep t =
         TVar _ -> t'
         TOp op bts -> TOp op (map (mapBound unfoldSoftDeep) bts)
 
--- | Computational equality: both sides reduce to α-equivalent WHNFs.
+-- | Computational equality (conversion): lazy comparison of weak-head
+-- normal forms, recursively converting subterms. So @f ((λx. t) a)@
+-- converts with @f (t[a/x])@ even though the outer apply is already a
+-- weak-head redex.
 computeEq :: Term -> Term -> Bool
-computeEq a b = alphaEq (whnf a) (whnf b)
+computeEq a b = conv (whnf a) (whnf b)
+
+conv :: Term -> Term -> Bool
+conv a b
+  | alphaEq a b = True
+  | otherwise = case (a, b) of
+      (TOp (Operator oid1 ps1) bts1, TOp (Operator oid2 ps2) bts2)
+        | oid1 == oid2
+            && ps1 == ps2
+            && length bts1 == length bts2 ->
+            and (zipWith convBound bts1 bts2)
+      _ -> False
+
+convBound :: BoundTerm -> BoundTerm -> Bool
+convBound (BoundTerm vs1 t1) (BoundTerm vs2 t2)
+  | length vs1 /= length vs2 = False
+  | vs1 == vs2 = computeEq t1 t2
+  | otherwise =
+      computeEq t1 (substMany vs2 (map TVar vs1) t2)

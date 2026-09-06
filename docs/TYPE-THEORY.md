@@ -59,6 +59,7 @@ the propositional universe, a soft encoding of `U{i}`.
 | `List A`          | `list(A)`                       | `[]`, `h :: t`      |
 | `{x:A \| P}`      | `set(A; x.P)`                   | a witness of `A`    |
 | `[A]`             | `squash(A)`                     | `Ax`                |
+| `a < b`           | `less_than(a; b)`               | `Ax` (when `a < b`) |
 
 Non-dependent `A → B` and `A × B` use a dummy binder.
 
@@ -89,6 +90,7 @@ Reduction is lazy (weak-head). Canonical redexes include
 - `spread(<a,b>; x,y.t)` → `t[a/x, b/y]`
 - `decide(inl a; …)` / `decide(inr b; …)`
 - closed integer arithmetic, `int_eq`, `less`
+- closed comparisons `n < m` compute to `Unit` or `Void`
 - `list_ind` on `[]` and `::`
 
 The equality rule first computes both sides.
@@ -108,11 +110,13 @@ Every completed proof is a tree of primitive refinements (`Nuprl.Rule`):
 - `hyp N` — use a visible hypothesis
 - `intro` — type-directed introduction (λ, pair, inl/inr, Ax, …)
 - `elim N` — type-directed elimination (apply, spread, decide, induction, …)
-- `eq` — canonical equality / membership
+- `eq` — canonical equality / membership (including set membership and application congruence)
 - `compute` — weak-head reduce the conclusion
 - `cut T` — assert an intermediate type
 - `lemma NAME` — copy a complete theorem into the hypotheses
 - `thin N` — drop a hypothesis that is not free in the remainder
+- `decide a = b` — integer equality is decidable
+- `decide t` — case analysis on a union-typed term
 
 Tactics are programs that search for such trees. Soundness of a checked
 theorem depends only on the kernel, not on the tactics (NuPRL §7.4).

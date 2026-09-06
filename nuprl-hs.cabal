@@ -27,6 +27,7 @@ extra-source-files:
     docs/placeholder.md
     docs/TACTICS.md
     docs/TYPE-THEORY.md
+    examples/cardinality.nuprl
     examples/classical.nuprl
     examples/core.nuprl
     examples/equality.nuprl
@@ -35,6 +36,7 @@ extra-source-files:
     examples/lists.nuprl
     examples/logic.nuprl
 data-files:
+    examples/cardinality.nuprl
     examples/classical.nuprl
     examples/core.nuprl
     examples/equality.nuprl

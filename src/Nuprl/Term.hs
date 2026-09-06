@@ -60,6 +60,7 @@ module Nuprl.Term
   , opRemainder
   , opIntEq
   , opLess
+  , opLessThan
   , opAtom
   , opToken
   , opAtomEq
@@ -108,6 +109,7 @@ module Nuprl.Term
   , pattern TRem
   , pattern TIntEq
   , pattern TLess
+  , pattern TLt
   , pattern TAtom
   , pattern TToken
   , pattern TAtomEq
@@ -156,6 +158,7 @@ module Nuprl.Term
   , tRem
   , tIntEq
   , tLess
+  , tLt
   , tAtom
   , tToken
   , tAtomEq
@@ -458,11 +461,12 @@ opAdd = "add"
 opSubtract = "subtract"
 opMultiply = "multiply"
 
-opDivide, opRemainder, opIntEq, opLess :: OpId
+opDivide, opRemainder, opIntEq, opLess, opLessThan :: OpId
 opDivide = "divide"
 opRemainder = "remainder"
 opIntEq = "int_eq"
 opLess = "less"
+opLessThan = "less_than"
 
 opAtom, opToken, opAtomEq :: OpId
 opAtom = "atom"
@@ -593,6 +597,14 @@ pattern TLess a b t u <-
   where
     TLess a b t u =
       TOp (mkOp opLess) [bterm0 a, bterm0 b, bterm0 t, bterm0 u]
+
+-- | Integer less-than as a type. Closed instances compute to 'TUnit' or
+-- 'TVoid'; open instances remain as a proposition (NuPRL §8, integer rules).
+pattern TLt :: Term -> Term -> Term
+pattern TLt a b <-
+  TOp (Operator (OpId "less_than") []) [BoundTerm [] a, BoundTerm [] b]
+  where
+    TLt a b = op2 opLessThan a b
 
 pattern TAtom :: Term
 pattern TAtom = TOp (Operator (OpId "atom") []) []
@@ -803,6 +815,9 @@ tIntEq = TIntEq
 tLess :: Term -> Term -> Term -> Term -> Term
 tLess = TLess
 
+tLt :: Term -> Term -> Term
+tLt = TLt
+
 tToken :: Text -> Term
 tToken = TToken
 
@@ -924,6 +939,7 @@ isCanonicalType = \case
   TSet {} -> True
   TIsect {} -> True
   TSquash {} -> True
+  TLt {} -> True
   _ -> False
 
 -- | Canonical values (weak-head).

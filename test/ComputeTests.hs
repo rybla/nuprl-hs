@@ -34,4 +34,8 @@ computeTests =
         -- True/False unfold to Unit/Void during reduction.
         whnf (tIntEq (tNat 1) (tNat 1) TTrue TFalse) @?= TUnit
         whnf (tIntEq (tNat 1) (tNat 2) TTrue TFalse) @?= TVoid
+    , testCase "closed less-than computes to Unit or Void" $ do
+        whnf (tLt (tNat 0) (tNat 1)) @?= TUnit
+        whnf (tLt (tNat 1) (tNat 0)) @?= TVoid
+        whnf (tLt (tNat 2) (tNat 2)) @?= TVoid
     ]

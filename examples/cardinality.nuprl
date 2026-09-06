@@ -1,0 +1,310 @@
+-- | Cardinality, following Constable et al., *Implementing Mathematics with
+-- the Nuprl Proof Development System* (1986), §11.3.
+--
+-- The library there develops two layers:
+--
+--   1. Equipollence (bijections) as the definition of “same cardinality”,
+--      shown to be an equivalence relation (Figure 11.5).
+--   2. The pigeonhole principle on finite integer segments {1..n}
+--      (Figure 11.4), whose extract finds a collision of a function from a
+--      larger finite set into a smaller one.
+--
+-- Finite cardinals are represented in two ways, both standard in CTT:
+-- integer segments `{s:Int | 0 < s ∧ s < n + 1}` (the book’s `{1..n}`),
+-- and the disjoint-union encoding `True ⊎ True` of a two-element type.
+-- The computational content of pigeonhole is proved on the latter, where
+-- case analysis is primitive; membership lemmas record the segment encoding.
+theory Cardinality
+
+comment book "Constable et al. §11.3: cardinality, equipollence, pigeonhole."
+
+-- Positive integers and finite initial segments of the positives
+-- (Figure 11.4: P and {1..m}).
+abs Positive == {p:Int | 0 < p}
+abs Fin(n) == {s:Int | 0 < s ∧ s < n + 1}
+abs Neq(x; y) == ¬(x = y ∈ Int)
+
+-- Small finite types as disjoint unions (Bool ≅ 2, and 1 + 2 ≅ 3).
+abs One == True
+abs Two == True ⊎ True
+abs Three == True ⊎ (True ⊎ True)
+
+-- Equipollence: a constructive bijection (Figure 11.5).
+abs Equipollent(A; B) ==
+  ∃f:(A → B). ∃g:(B → A).
+    (∀x:A. g (f x) = x ∈ A) ∧ (∀y:B. f (g y) = y ∈ B)
+
+abs Injective(A; B; f) ==
+  ∀x:A. ∀y:A. (f x = f y ∈ B) → x = y ∈ A
+
+abs Surjective(A; B; f) ==
+  ∀y:B. ∃x:A. f x = y ∈ B
+
+soft Positive, Fin, Neq, One, Two, Three, Equipollent, Injective, Surjective
+
+--------------------------------------------------------------------------------
+-- Integer comparisons and finite segments
+--------------------------------------------------------------------------------
+
+-- Closed comparisons compute to Unit / Void, as in the integer rules.
+theorem zero_lt_one :
+  0 < 1
+proof
+  intro
+qed
+
+theorem not_one_lt_zero :
+  ¬(1 < 0)
+proof
+  intro p
+  elim 1
+qed
+
+-- lemma_arith of Figure 11.4: equality on Int is decidable.
+theorem lemma_arith :
+  ∀x:Int. ∀y:Int. x = y ∈ Int ∨ ¬(x = y ∈ Int)
+proof
+  intro x
+  intro y
+  decide x = y THENL [left THEN hyp, right THEN hyp]
+qed
+
+-- 1 inhabits the singleton segment {1..1} and the positives.
+theorem one_in_fin1 :
+  1 ∈ {s:Int | 0 < s ∧ s < 2}
+proof
+  auto
+qed
+
+theorem one_is_positive :
+  1 ∈ {p:Int | 0 < p}
+proof
+  auto
+qed
+
+theorem two_in_fin2 :
+  2 ∈ {s:Int | 0 < s ∧ s < 3}
+proof
+  auto
+qed
+
+--------------------------------------------------------------------------------
+-- Equipollence is an equivalence relation (Figure 11.5)
+--------------------------------------------------------------------------------
+
+theorem equipollent_refl :
+  ∀A:U{i}. Equipollent(A; A)
+proof
+  intro A
+  exists (λx. x) THENL [
+    auto,
+    exists (λx. x) THENL [
+      auto,
+      split THENL [intro x THEN auto, intro y THEN auto]
+    ]
+  ]
+qed
+
+theorem equipollent_sym :
+  ∀A:U{i}. ∀B:U{i}. Equipollent(A; B) → Equipollent(B; A)
+proof
+  intro A
+  intro B
+  intro p
+  elim 3
+  elim 5
+  elim 7
+  exists u1 THENL [hyp, exists u THENL [hyp, split THENL [hyp 9, hyp 8]]]
+qed
+
+theorem equipollent_trans :
+  ∀A:U{i}. ∀B:U{i}. ∀C:U{i}.
+    Equipollent(A; B) → Equipollent(B; C) → Equipollent(A; C)
+proof
+  intro A
+  intro B
+  intro C
+  intro pAB
+  intro pBC
+  elim 4
+  elim 7
+  elim 9
+  elim 5
+  elim 13
+  elim 15
+  exists (λx. u3 (u x)) THENL [
+    auto,
+    exists (λz. u1 (u4 z)) THENL [
+      auto,
+      split THENL [
+        intro x THEN elim 16 with (u x) THENL [
+          auto,
+          elim 19 THEN elim 10 with x THENL [hyp, hyp]
+        ],
+        intro z THEN elim 11 with (u4 z) THENL [
+          auto,
+          elim 19 THEN elim 17 with z THENL [hyp, hyp]
+        ]
+      ]
+    ]
+  ]
+qed
+
+-- A left inverse is enough for injectivity.
+theorem left_inverse_injective :
+  ∀A:U{i}. ∀B:U{i}. ∀f:(A → B). ∀g:(B → A).
+    (∀x:A. g (f x) = x ∈ A) →
+    ∀x:A. ∀y:A. (f x = f y ∈ B) → x = y ∈ A
+proof
+  intro A
+  intro B
+  intro f
+  intro g
+  intro inv
+  intro x
+  intro y
+  intro p
+  elim 5 with x THENL [
+    hyp,
+    elim 9 THEN elim 5 with y THENL [
+      hyp,
+      elim 10 THEN elim 8 THEN auto
+    ]
+  ]
+qed
+
+theorem id_injective :
+  ∀A:U{i}. ∀x:A. ∀y:A. ((λz. z) x = (λz. z) y ∈ A) → x = y ∈ A
+proof
+  intro A
+  intro x
+  intro y
+  intro p
+  elim 4 THEN auto
+qed
+
+theorem id_surjective :
+  ∀A:U{i}. ∀y:A. ∃x:A. (λz. z) x = y ∈ A
+proof
+  intro A
+  intro y
+  exists y THENL [hyp, auto]
+qed
+
+--------------------------------------------------------------------------------
+-- Pigeonhole principle (computational content of Figure 11.4)
+--------------------------------------------------------------------------------
+
+-- The two injections into a two-element type are distinct.
+theorem two_inl_inr_neq :
+  ¬(inl Ax = inr Ax ∈ True ⊎ True)
+proof
+  intro p
+  elim 1
+qed
+
+-- Any map from a 2-element type into a singleton collides. The extract is
+-- the pair of distinct domain points (inl Ax, inr Ax); the range equality
+-- is Unit-η.
+theorem php_two_one :
+  ∀f:(True ⊎ True) → True.
+    ∃i:(True ⊎ True). ∃j:(True ⊎ True).
+      ¬(i = j ∈ True ⊎ True) ∧ f i = f j ∈ True
+proof
+  intro f
+  exists (inl Ax) THENL [
+    auto,
+    exists (inr Ax) THENL [
+      auto,
+      split THENL [intro p THEN elim 2, eq]
+    ]
+  ]
+qed
+
+-- lemma_1 of Figure 11.4 in the 3-into-2 case: any function from a
+-- 3-element type into a 2-element type has a collision. The extract is a
+-- pair of distinct domain points that f identifies. Cases follow the
+-- book’s use of lemma_hole (search the image) by deciding f at each
+-- canonical point.
+theorem php_three_two :
+  ∀f:(True ⊎ (True ⊎ True)) → (True ⊎ True).
+    ∃i:(True ⊎ (True ⊎ True)). ∃j:(True ⊎ (True ⊎ True)).
+      ¬(i = j ∈ True ⊎ (True ⊎ True)) ∧ f i = f j ∈ True ⊎ True
+proof
+  intro f
+  decide (f (inl Ax)) THENL [
+    auto,
+    decide (f (inr (inl Ax))) THENL [
+      auto,
+      exists (inl Ax) THENL [
+        auto,
+        exists (inr (inl Ax)) THENL [
+          auto,
+          split THENL [
+            intro p THEN elim 6,
+            elim 3 THEN elim 5 THEN auto
+          ]
+        ]
+      ],
+      decide (f (inr (inr Ax))) THENL [
+        auto,
+        exists (inl Ax) THENL [
+          auto,
+          exists (inr (inr Ax)) THENL [
+            auto,
+            split THENL [
+              intro p THEN elim 8,
+              elim 3 THEN elim 7 THEN auto
+            ]
+          ]
+        ],
+        exists (inr (inl Ax)) THENL [
+          auto,
+          exists (inr (inr Ax)) THENL [
+            auto,
+            split THENL [
+              intro p THEN elim 8,
+              elim 5 THEN elim 7 THEN auto
+            ]
+          ]
+        ]
+      ]
+    ],
+    decide (f (inr (inl Ax))) THENL [
+      auto,
+      decide (f (inr (inr Ax))) THENL [
+        auto,
+        exists (inr (inl Ax)) THENL [
+          auto,
+          exists (inr (inr Ax)) THENL [
+            auto,
+            split THENL [
+              intro p THEN elim 8,
+              elim 5 THEN elim 7 THEN auto
+            ]
+          ]
+        ],
+        exists (inl Ax) THENL [
+          auto,
+          exists (inr (inr Ax)) THENL [
+            auto,
+            split THENL [
+              intro p THEN elim 8,
+              elim 3 THEN elim 7 THEN auto
+            ]
+          ]
+        ]
+      ],
+      exists (inl Ax) THENL [
+        auto,
+        exists (inr (inl Ax)) THENL [
+          auto,
+          split THENL [
+            intro p THEN elim 6,
+            elim 3 THEN elim 5 THEN auto
+          ]
+        ]
+      ]
+    ]
+  ]
+qed
