@@ -151,10 +151,11 @@ stack exec build-website -- --out /tmp/nuprl-site
 ```
 
 The landing page links the GitHub repository, the Cornell PRL / NuPRL project,
-and the 1986 book. Each file in `examples/` becomes an annotated document:
-statements and extracts first, then expandable tactic scripts, refinement
-trees, and hover inspectors (uniform syntax, unfolding, weak-head form). Colour
-is semantic (types, binders, connectives, tactics, extracts, goals).
+and the 1986 book. The catalogue of theories is `examples.html`; each file in
+`examples/` becomes an annotated document: statements and extracts first, then
+expandable tactic scripts, refinement trees, and hover inspectors (uniform
+syntax, unfolding, weak-head form). Colour is semantic (types, binders,
+connectives, tactics, extracts, goals).
 
 To publish on GitHub Pages, point the Pages source at the `website/` folder
 (or copy it to `docs/` / a `gh-pages` branch). `.nojekyll` is written so

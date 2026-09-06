@@ -118,8 +118,8 @@ ul, ol { margin: 0 0 1rem; padding-left: 1.2rem; }
 li { margin: 0.2rem 0; }
 hr { border: 0; border-top: 1px solid var(--rule); margin: 2rem 0; }
 footer.site { border-top: 1px solid var(--rule); padding: 1.4rem; color: var(--ink-muted); font-size: 0.88rem; text-align: center; }
-.links { display: flex; flex-wrap: wrap; gap: 0.4rem 1.3rem; margin: 1.4rem 0 2.2rem; font-size: 0.95rem; }
-.links a { text-decoration: none; border-bottom: 1px solid var(--rule-strong); }
+.links { margin: 1.2rem 0 2rem; padding-left: 1.2rem; font-size: 0.95rem; }
+.links li { margin: 0.35rem 0; }
 .key { display: flex; flex-wrap: wrap; gap: 0.45rem 1.1rem; font-size: 0.82rem; margin: 1.2rem 0 0.4rem; }
 .key span { white-space: nowrap; }
 .sem-type, .key .sem-type { color: var(--type); }

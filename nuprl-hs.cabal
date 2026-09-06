@@ -1,11 +1,11 @@
 cabal-version: 2.2
 
--- This file has been generated from package.yaml by hpack version 0.38.1.
+-- This file has been generated from package.yaml by hpack version 0.39.1.
 --
 -- see: https://github.com/sol/hpack
 
 name:           nuprl-hs
-version:        0.1.0.0
+version:        0.2.0.0
 synopsis:       A modern Haskell implementation of the NuPRL proof development system
 description:    nuprl-hs is a modern, purely-functional implementation of the NuPRL
                 computational type theory (CTT) proof development system. It provides a

@@ -1,6 +1,7 @@
 -- | Landing page and per-example annotated documents.
 module Pages
   ( indexPage
+  , examplesIndexPage
   , examplePage
   , notFoundPage
   , countTheorems
@@ -40,10 +41,8 @@ siteHeader root =
             "nav"
             []
             ( navLink (root <> "index.html") "Home"
-                <> navLink (root <> "index.html#examples") "Examples"
-                <> navLink (root <> "index.html#about") "About"
+                <> navLink (root <> "examples.html") "Examples"
                 <> navLink "https://github.com/rybla/nuprl-hs" "GitHub"
-                <> navLink "https://nuprl-web.cs.cornell.edu/" "NuPRL"
             )
       )
   where
@@ -92,11 +91,9 @@ indexPage exs =
               [("class", "measure")]
               ( hero
                   </> links
-                  </> semanticKey
-                  </> examplesSection exs
+                  </> examplesCallout exs
                   </> aboutSection
                   </> featuresSection
-                  </> implementationSection
                   </> referencesSection
               )
           )
@@ -116,38 +113,69 @@ hero =
 
 links :: Html
 links =
-  el "div" [("class", "links")] $
+  el "ul" [("class", "links")] $
     mconcat
-      [ el "a" [("href", "https://github.com/rybla/nuprl-hs")] (txt "GitHub repository")
-      , el "a" [("href", "https://nuprl-web.cs.cornell.edu/")] (txt "Cornell PRL / NuPRL")
-      , el "a" [("href", "https://nuprl-web.cs.cornell.edu/html/NuprlSystem.html")] (txt "Original NuPRL system")
-      , el "a" [("href", "https://nuprl-web.cs.cornell.edu/book/")] (txt "Implementing Mathematics… (1986)")
-      , el "a" [("href", "https://github.com/NuPRL")] (txt "NuPRL on GitHub")
+      [ item "https://github.com/rybla/nuprl-hs" "github.com/rybla/nuprl-hs"
+      , item "https://nuprl-web.cs.cornell.edu/" "Cornell PRL Project — Proof/Program Refinement Logic"
       ]
-
-examplesSection :: [AnnotatedExample] -> Html
-examplesSection exs =
-  el "h2" [("id", "examples")] (txt "Annotated examples")
-    </> el
-      "p"
-      []
-      ( txt "Each theory in "
-          <> el "code" [] (txt "examples/")
-          <> txt " is checked by the kernel, then rendered as an interactive document. Statements and extracts are shown first; hover a term for its uniform syntax, unfolding, and weak-head normal form; open a panel for the tactic script, the refinement tree, and the analyses the CLI would print ("
-          <> el "code" [] (txt "check")
-          <> txt ", "
-          <> el "code" [] (txt "extract")
-          <> txt ", "
-          <> el "code" [] (txt "compute")
-          <> txt ", "
-          <> el "code" [] (txt "dump")
-          <> txt ", "
-          <> el "code" [] (txt "show")
-          <> txt ")."
-      )
-    </> el "ol" [("class", "ex-index")] (mconcat (zipWith exampleEntry [1 ..] ordered))
   where
-    ordered = orderExamples exs
+    item href label = el "li" [] (el "a" [("href", href)] (txt label))
+
+examplesCallout :: [AnnotatedExample] -> Html
+examplesCallout exs =
+  let n = length (orderExamples exs)
+      nTh = sum (map countTheorems exs)
+   in el "h2" [("id", "examples")] (txt "Annotated examples")
+        </> el
+          "p"
+          []
+          ( txt "Each theory in "
+              <> el "code" [] (txt "examples/")
+              <> txt " is checked by the kernel and rendered as an interactive document — statements and extracts first, then tactic scripts, refinement trees, and the analyses the CLI would print."
+          )
+        </> el
+          "p"
+          []
+          ( el "a" [("href", "examples.html")] (txt "Browse the examples")
+              <> txt (" · " <> T.pack (show n) <> " theories, " <> T.pack (show nTh) <> " theorems.")
+          )
+
+examplesIndexPage :: [AnnotatedExample] -> Html
+examplesIndexPage exs =
+  page
+    ""
+    "Examples — nuprl-hs"
+    "Annotated example theories for nuprl-hs: interactive proofs, extracts, and kernel analyses."
+    ( siteHeader ""
+        </> el
+          "main"
+          [("id", "main")]
+          ( el
+              "div"
+              [("class", "measure")]
+              ( el "h1" [] (txt "Examples")
+                  </> el
+                    "p"
+                    [("class", "lede")]
+                    ( txt "Checked theories from "
+                        <> el "code" [] (txt "examples/")
+                        <> txt ", rendered as interactive documents. Statements and extracts are shown first; hover a term for its uniform syntax, unfolding, and weak-head normal form; open a panel for the tactic script, the refinement tree, and the analyses the CLI would print ("
+                        <> el "code" [] (txt "check")
+                        <> txt ", "
+                        <> el "code" [] (txt "extract")
+                        <> txt ", "
+                        <> el "code" [] (txt "compute")
+                        <> txt ", "
+                        <> el "code" [] (txt "dump")
+                        <> txt ", "
+                        <> el "code" [] (txt "show")
+                        <> txt ")."
+                    )
+                  </> el "ol" [("class", "ex-index")] (mconcat (zipWith exampleEntry [1 ..] (orderExamples exs)))
+              )
+          )
+        </> siteFooter
+    )
 
 exampleEntry :: Int -> AnnotatedExample -> Html
 exampleEntry i ax =
@@ -194,7 +222,7 @@ orderExamples exs =
 
 aboutSection :: Html
 aboutSection =
-  el "h2" [("id", "about")] (txt "What this is")
+  el "h2" [("id", "about")] (txt "What is NuPRL")
     </> el
       "p"
       []
@@ -208,11 +236,6 @@ aboutSection =
       ( txt "Computational type theory is a constructive foundation in the lineage of Martin-Löf: a proposition is a type, a proof is a program, and completing a refinement proof "
           <> el "em" [] (txt "extracts")
           <> txt " that program. The kernel is a pure function from sequents to subgoals and extract combinators. Tactics search for kernel derivations; they are not part of the trusted computing base."
-      )
-    </> el
-      "blockquote"
-      []
-      ( txt "The kernel is pure. IO lives only at the CLI / REPL boundary."
       )
 
 featuresSection :: Html
@@ -236,32 +259,7 @@ featuresSection =
           <> feat "Lazy computation"
           "Weak-head reduction with β, arithmetic, spread, decide, list_ind, integer ind, and soft unfold."
           <> feat "File-based theories"
-          "theory / abs / theorem / proof / qed. The checker replays scripts; a failing script is an error, not a skip."
-      )
-  where
-    feat n d = el "dt" [] (txt n) <> el "dd" [] (txt d)
-
-implementationSection :: Html
-implementationSection =
-  el "h2" [("id", "implementation")] (txt "Implementation")
-    </> el
-      "p"
-      []
-      ( txt "Written in Haskell (GHC 9.12) as a Stack project. The library is organised so that a regression in an early layer fails in its own test group: terms, substitution, parse/pretty, computation, rules, tactics, then every example theory."
-      )
-    </> el
-      "dl"
-      [("class", "feats")]
-      ( feat "Nuprl.Term" "Uniform terms, universe levels, bidirectional pattern synonyms."
-          <> feat "Nuprl.Rule" "The kernel: primitive refinement rules and extract combinators."
-          <> feat "Nuprl.Tactic" "LCF combinators and auto. Not trusted."
-          <> feat "Nuprl.Check" "Pure replay of tactic scripts; fills statuses and extracts."
-          <> feat "Nuprl.Command" "Pure session interpreter. The REPL and CLI are thin IO wrappers."
-      )
-    </> el
-      "p"
-      [("class", "note")]
-      ( txt "Deliberately out of scope for this line: the X11 term/proof editor and display-form language; user-defined primitive rules as library objects; the full rewrite/conversion package; SupInf / the original Arith procedure; recursive types (rec) and quotient types."
+          "theory / abs / theorem / proof / qed. The checker replays scripts."
       )
   where
     feat n d = el "dt" [] (txt n) <> el "dd" [] (txt d)
@@ -272,7 +270,7 @@ referencesSection =
     </> el
       "ol"
       []
-      ( ref "R. L. Constable et al., Implementing Mathematics with the Nuprl Proof Development System, Prentice-Hall, 1986."
+      ( ref "Implementing Mathematics with the Nuprl Proof Development System, R. L. Constable et al., Prentice-Hall, 1986."
           "https://nuprl-web.cs.cornell.edu/book/"
           <> ref "P. B. Jackson, The Nuprl Proof Development System, Version 4.2: Reference Manual and User’s Guide, Cornell University, 1995."
           "https://nuprl-web.cs.cornell.edu/html/NuprlSystem.html"
@@ -280,13 +278,13 @@ referencesSection =
           "https://nuprl-web.cs.cornell.edu/"
           <> ref "Cornell PRL project — Proof/Program Refinement Logic."
           "https://nuprl-web.cs.cornell.edu/"
-          <> ref "nuprl-hs source repository."
+          <> ref "github.com/rybla/nuprl-hs"
           "https://github.com/rybla/nuprl-hs"
       )
     </> el
       "p"
       [("class", "note")]
-      ( txt "Colour on this site is semantic, not decorative: Prussian blue for types, verdigris with a dotted underline for binders, oxblood for connectives, forest for tactics and kernel rules, burnt sienna for extracts, ochre for sequent goals, slate indigo for named abstractions. The same key is used on every page."
+      ( txt "Colour on this site is semantic: Prussian blue for types, verdigris with a dotted underline for binders, oxblood for connectives, forest for tactics and kernel rules, burnt sienna for extracts, ochre for sequent goals, slate indigo for named abstractions. The same key is used on every page."
       )
   where
     ref title href =

@@ -130,6 +130,7 @@ writeSite out examples = do
   TIO.writeFile (out </> "favicon.svg") faviconSvg
   TIO.writeFile (out </> ".nojekyll") ""
   TIO.writeFile (out </> "index.html") (fromHtml (indexPage examples))
+  TIO.writeFile (out </> "examples.html") (fromHtml (examplesIndexPage examples))
   TIO.writeFile (out </> "404.html") (fromHtml notFoundPage)
   forM_ examples $ \ax -> do
     let dest = out </> "examples" </> T.unpack (axSlug ax) <> ".html"
