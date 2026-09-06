@@ -63,11 +63,14 @@ voidEl name attrs =
 attr :: (Text, Text) -> Html
 attr (k, v) = raw " " <> raw k <> raw "=\"" <> raw (escapeAttr v) <> raw "\""
 
+-- | Escape a text node. Ampersands must be replaced first so the '&' in
+-- subsequently inserted entities is not re-escaped (otherwise '<' becomes
+-- visible as the characters @&lt;@).
 escapeText :: Text -> Text
 escapeText =
-  T.replace "&" "&amp;"
+  T.replace ">" "&gt;"
     . T.replace "<" "&lt;"
-    . T.replace ">" "&gt;"
+    . T.replace "&" "&amp;"
 
 escapeAttr :: Text -> Text
 escapeAttr =
