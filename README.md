@@ -155,5 +155,5 @@ explicit export list.
   Development System*, Prentice-Hall, 1986. ([Implementing_mathematics_with_the_Nuprl.pdf](literature/Implementing_mathematics_with_the_Nuprl.pdf)).
 - P. B. Jackson, *The Nuprl Proof Development System, Version 4.2:
   Reference Manual and User's Guide*, Cornell University, 1995
-  ([nuprl-man.pdf](literature/Nuprl_Manual.pdf)).
+  ([Nuprl_Manual.pdf](literature/Nuprl_Manual.pdf)).
 - P. Martin-Löf, *Intuitionistic Type Theory*, Bibliopolis, 1984. ([Intuitionistic_Type_Theory.pdf](literature/Intuitionistic_Type_Theory.pdf))
