@@ -136,7 +136,8 @@ footer.site { border-top: 1px solid var(--rule); padding: 1.4rem; color: var(--i
 .sem-comment { color: var(--comment); font-style: italic; }
 .sem-keyword { color: var(--keyword); font-variant: small-caps; letter-spacing: 0.08em; }
 .tm, .tac, .script, .sequent, .pnode-concl { font-family: var(--serif); }
-.tm { cursor: help; }
+.tm { cursor: help; word-spacing: 0.04em; }
+.sem-conn { padding: 0 0.1em; }
 .tac { cursor: help; }
 .rule { cursor: help; font-variant: small-caps; letter-spacing: 0.06em; }
 .ex-index { list-style: none; padding: 0; margin: 0 0 2rem; }
@@ -183,8 +184,8 @@ blockquote { margin: 1rem 0; padding: 0 0 0 1rem; border-left: 2px solid var(--r
 .obj-name { font-size: 1.25rem; margin: 0.1rem 0 0.45rem; }
 .status { font-size: 0.82rem; color: var(--complete); }
 .status.bad { color: var(--danger); }
-.statement { font-size: 1.08rem; margin: 0.3rem 0 0.7rem; line-height: 1.6; }
-.extract-line { color: var(--extract); margin: 0.4rem 0 0.6rem; padding-left: 0.7rem; border-left: 2px solid var(--extract); }
+.statement { font-size: 1.12rem; margin: 0.45rem 0 0.85rem; line-height: 1.9; }
+.extract-line { color: var(--extract); margin: 0.5rem 0 0.75rem; padding-left: 0.7rem; border-left: 2px solid var(--extract); line-height: 1.9; }
 .extract-line .k { font-variant: small-caps; letter-spacing: 0.08em; font-size: 0.78rem; color: var(--extract); margin-right: 0.5rem; }
 details.panel { margin: 0.35rem 0; }
 details.panel > summary { cursor: pointer; color: var(--ink-muted); font-variant: small-caps; letter-spacing: 0.08em; font-size: 0.82rem; list-style: none; }
@@ -208,7 +209,8 @@ details.panel > summary:hover { color: var(--ink); }
 .hyps { list-style: none; padding-left: 0; margin: 0.4rem 0; font-size: 0.95rem; }
 .hyp-hidden { opacity: 0.55; font-style: italic; }
 .hyp-idx { color: var(--ink-muted); font-size: 0.82rem; }
-.concl { margin: 0.15rem 0 0.4rem; }
+.concl { margin: 0.15rem 0 0.4rem; line-height: 1.85; }
+.hyps .hyp { line-height: 1.75; margin: 0.2rem 0; }
 .turnstile { color: var(--goal); margin-right: 0.25rem; }
 .node-extract { color: var(--extract); font-size: 0.9rem; margin: 0.2rem 0 0.4rem; padding-left: 0.5rem; border-left: 2px solid var(--extract); }
 .node-extract .k { font-variant: small-caps; letter-spacing: 0.08em; font-size: 0.75rem; margin-right: 0.4rem; }

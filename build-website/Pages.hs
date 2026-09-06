@@ -405,7 +405,7 @@ absCard lib a =
                  then emptyH
                  else
                    raw "("
-                     <> mconcat (punctuate (raw "; ") (map formalH formals))
+                     <> mconcat (punctuate (raw " ; ") (map formalH formals))
                      <> raw ")"
              )
    in el "article" [("class", "card"), ("id", name), ("data-name", name)] $
@@ -434,7 +434,7 @@ absCard lib a =
           body = btBody bt
        in ( if null vs
               then renderTermH lib body
-              else mconcat (punctuate (raw ",") (map binderish vs)) <> raw "." <> renderTermH lib body
+              else mconcat (punctuate (raw ", ") (map binderish vs)) <> raw ". " <> renderTermH lib body
           )
     binderish v = el "span" [("class", "sem-binder")] (txt (varText v))
     conn s = el "span" [("class", "sem-conn")] (txt s)
@@ -491,6 +491,7 @@ extractBlock :: Library -> Term -> Html
 extractBlock lib e =
   el "div" [("class", "extract-line")] $
     el "span" [("class", "k")] (txt "extract")
+      <> raw " "
       <> renderTermH lib e
 
 theoremAnalysis :: Library -> AnnotatedTheorem -> Html

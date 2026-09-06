@@ -94,15 +94,15 @@ termBody lib prec t = case t of
   TNil -> val "[]"
   TLambda x b ->
     paren (prec > 0) $
-      kw "λ" <> binder x <> raw "." <> sp <> sub lib 0 b
+      kw "λ" <> sp <> binder x <> dotSp <> sub lib 0 b
   TAll a x b ->
     paren (prec > 0) $
-      conn "∀" <> binder x <> raw ":" <> sub lib 8 a <> raw "." <> sp <> sub lib 0 b
+      conn "∀" <> sp <> binder x <> colon <> sub lib 8 a <> dotSp <> sub lib 0 b
   TExists a x b ->
     paren (prec > 0) $
-      conn "∃" <> binder x <> raw ":" <> sub lib 8 a <> raw "." <> sp <> sub lib 0 b
+      conn "∃" <> sp <> binder x <> colon <> sub lib 8 a <> dotSp <> sub lib 0 b
   TNot a ->
-    paren (prec > 8) $ conn "¬" <> sub lib 8 a
+    paren (prec > 8) $ conn "¬" <> sp <> sub lib 8 a
   TImplies a b ->
     paren (prec > 1) $ sub lib 2 a <> sp <> conn "⇒" <> sp <> sub lib 1 b
   TOr a b ->
@@ -120,7 +120,7 @@ termBody lib prec t = case t of
         paren (prec > 1) $
           raw "("
             <> binder x
-            <> raw ":"
+            <> colon
             <> sub lib 0 a
             <> raw ")"
             <> sp
@@ -134,7 +134,7 @@ termBody lib prec t = case t of
         paren (prec > 3) $
           raw "("
             <> binder x
-            <> raw ":"
+            <> colon
             <> sub lib 0 a
             <> raw ")"
             <> sp
@@ -170,7 +170,7 @@ termBody lib prec t = case t of
   TCons h tl ->
     paren (prec > 7) $ sub lib 8 h <> sp <> conn "::" <> sp <> sub lib 7 tl
   TPair a b ->
-    raw "〈" <> sub lib 0 a <> raw "," <> sp <> sub lib 0 b <> raw "〉"
+    raw "〈" <> sp <> sub lib 0 a <> raw "," <> sp <> sub lib 0 b <> sp <> raw "〉"
   TInl a ->
     paren (prec > 8) $ kw "inl" <> sp <> sub lib 9 a
   TInr a ->
@@ -182,10 +182,12 @@ termBody lib prec t = case t of
       kw "let"
         <> sp
         <> raw "〈"
+        <> sp
         <> binder x
         <> raw ","
         <> sp
         <> binder y
+        <> sp
         <> raw "〉"
         <> sp
         <> conn "="
@@ -224,22 +226,24 @@ termBody lib prec t = case t of
     paren (prec > 8) $ ty "List" <> sp <> sub lib 9 a
   TSet a x p ->
     raw "{"
+      <> sp
       <> binder x
-      <> raw ":"
+      <> colon
       <> sub lib 0 a
       <> sp
       <> conn "|"
       <> sp
       <> sub lib 0 p
+      <> sp
       <> raw "}"
   TIsect a x b
     | isDummyVar x ->
         paren (prec > 3) $ sub lib 4 a <> sp <> conn "∩" <> sp <> sub lib 3 b
     | otherwise ->
         paren (prec > 0) $
-          conn "⋂" <> binder x <> raw ":" <> sub lib 8 a <> raw "." <> sp <> sub lib 0 b
+          conn "⋂" <> sp <> binder x <> colon <> sub lib 8 a <> dotSp <> sub lib 0 b
   TSquash a ->
-    raw "[" <> sub lib 0 a <> raw "]"
+    raw "[" <> sp <> sub lib 0 a <> sp <> raw "]"
   TAny v tyT ->
     paren (prec > 8) $ kw "any" <> sp <> sub lib 9 v <> sp <> sub lib 9 tyT
   TIntEq a b th els ->
@@ -274,11 +278,12 @@ termBody lib prec t = case t of
         <> raw "("
         <> binder x
         <> raw ","
+        <> sp
         <> binder xs
         <> raw ","
-        <> binder ih
-        <> raw "."
         <> sp
+        <> binder ih
+        <> dotSp
         <> sub lib 0 step
         <> raw ")"
   TInd n x ih down base y jh up ->
@@ -290,9 +295,9 @@ termBody lib prec t = case t of
         <> sp
         <> binder x
         <> raw ","
-        <> binder ih
-        <> raw "."
         <> sp
+        <> binder ih
+        <> dotSp
         <> sub lib 0 down
         <> raw ";"
         <> sp
@@ -301,9 +306,9 @@ termBody lib prec t = case t of
         <> sp
         <> binder y
         <> raw ","
-        <> binder jh
-        <> raw "."
         <> sp
+        <> binder jh
+        <> dotSp
         <> sub lib 0 up
         <> raw ")"
   TOp (Operator oid params) bts ->
@@ -313,7 +318,7 @@ termBody lib prec t = case t of
           | null params = emptyH
           | otherwise =
               raw "{"
-                <> mconcat (punctuate (raw ";") (map (txt . prettyParam) params))
+                <> mconcat (punctuate (raw "; ") (map (txt . prettyParam) params))
                 <> raw "}"
         bdoc
           | null bts && null params = emptyH
@@ -337,7 +342,7 @@ prettyBound lib (BoundTerm vs t) =
   where
     binders
       | null vs = emptyH
-      | otherwise = mconcat (punctuate (raw ",") (map binder vs)) <> raw "."
+      | otherwise = mconcat (punctuate (raw "," <> sp) (map binder vs)) <> dotSp
 
 alphaHead :: Term -> Term -> Bool
 alphaHead (TVar x) (TVar y) = x == y
@@ -349,6 +354,14 @@ paren False h = h
 
 sp :: Html
 sp = raw " "
+
+-- | Spaced colon in bindings: @x : A@.
+colon :: Html
+colon = sp <> raw ":" <> sp
+
+-- | Binder dot with a following space: @λ x. t@, @∀ x : A. B@.
+dotSp :: Html
+dotSp = raw "." <> sp
 
 kw :: Text -> Html
 kw s = el "span" [("class", "sem-kw")] (txt s)
@@ -553,7 +566,7 @@ renderNode lib open addr = \case
             <> sp
             <> el "span" [("class", "turnstile")] (txt "⊢")
             <> sp
-            <> el "span" [("class", "pnode-concl")] (txt (renderTerm (seqConcl sq)))
+            <> el "span" [("class", "pnode-concl")] (sub lib 0 (seqConcl sq))
         extra =
           renderSequentH lib sq
             <> (if open then extractLine lib (Refined sq name cs _extr) else emptyH)
