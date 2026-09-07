@@ -1,0 +1,252 @@
+-- | Lists as a programming theory, following Constable et al. §11.2
+-- (the Nuprl book’s “Lists and Arrays”).
+--
+-- A discrete type has decidable equality; a predicate is decidable when it
+-- or its negation holds at every point. Head is defined in two ways (partial
+-- vs. defaulted), tail and length by `list_ind`, membership and
+-- non-repetition as recursively defined propositions, and a list fold is
+-- extracted from an existence theorem (Figure 11.3).
+theory ListProg
+
+comment book "Constable et al. §11.2: lists and arrays as a programming theory."
+
+abs Discrete(T) == ∀x:T. ∀y:T. x = y ∈ T ∨ ¬(x = y ∈ T)
+abs Decidable(T; F) == ∀x:T. F x ∨ ¬(F x)
+abs Hd(d; l) == list_ind l (d) (h, t, v. h)
+abs Tl(l) == list_ind l ([]) (h, t, v. t)
+abs Len(l) == list_ind l 0 (h, t, v. v + 1)
+abs On(e; l; T) == list_ind l False (h, t, v. (e = h ∈ T) ∨ v)
+abs Unique(l; T) == list_ind l True (h, t, v. ¬(On(h; t; T)) ∧ v)
+abs Append(xs; ys) == list_ind xs (ys) (h, t, ih. h :: ih)
+abs Sum(l) == list_ind l 0 (h, t, v. h + v)
+abs Map(f; xs) == list_ind xs ([]) (h, t, ih. f h :: ih)
+
+soft Discrete, Decidable, Hd, Tl, Len, On, Unique, Append, Sum, Map
+
+--------------------------------------------------------------------------------
+-- Discreteness and decidability
+--------------------------------------------------------------------------------
+
+theorem int_discrete :
+  Discrete(Int)
+proof
+  intro x
+  intro y
+  decide x = y THENL [left THEN hyp, right THEN hyp]
+qed
+
+theorem unit_discrete :
+  Discrete(Unit)
+proof
+  intro x
+  intro y
+  left
+  eq
+qed
+
+--------------------------------------------------------------------------------
+-- Head with a default (hdd of Figure 11.2)
+--------------------------------------------------------------------------------
+
+theorem hd_nil :
+  ∀A:U{i}. ∀d:A. Hd(d; []) = d ∈ A
+proof
+  intro A
+  intro d
+  eq
+qed
+
+theorem hd_cons :
+  ∀A:U{i}. ∀d:A. ∀h:A. ∀t:List A. Hd(d; h :: t) = h ∈ A
+proof
+  intro A
+  intro d
+  intro h
+  intro t
+  auto
+qed
+
+theorem hd_inhab :
+  ∀A:U{i}. ∀d:A. ∀l:List A. Hd(d; l) ∈ A
+proof
+  intro A
+  intro d
+  intro l
+  elim 3 THENL [hyp, hyp]
+qed
+
+--------------------------------------------------------------------------------
+-- Tail, length, nil discrimination
+--------------------------------------------------------------------------------
+
+theorem tl_nil :
+  ∀A:U{i}. Tl([]) = [] ∈ List A
+proof
+  intro A
+  eq
+qed
+
+theorem tl_cons :
+  ∀A:U{i}. ∀h:A. ∀t:List A. Tl(h :: t) = t ∈ List A
+proof
+  intro A
+  intro h
+  intro t
+  auto
+qed
+
+theorem len_nil :
+  Len([]) = 0 ∈ Int
+proof
+  eq
+qed
+
+theorem len_two :
+  Len([1, 2]) = 2 ∈ Int
+proof
+  eq
+qed
+
+theorem list_decide_nil :
+  ∀A:U{i}. ∀l:List A. l = [] ∈ List A ∨ ¬(l = [] ∈ List A)
+proof
+  intro A
+  intro l
+  elim 2 THENL [
+    left THEN eq,
+    right THEN intro p THEN elim 6
+  ]
+qed
+
+theorem nil_ne_cons :
+  ∀A:U{i}. ∀h:A. ∀t:List A. ¬([] = h :: t ∈ List A)
+proof
+  intro A
+  intro h
+  intro t
+  intro p
+  elim 4
+qed
+
+--------------------------------------------------------------------------------
+-- Membership (`e on l over T` of §11.2)
+--------------------------------------------------------------------------------
+
+theorem on_nil :
+  ∀A:U{i}. ∀e:A. ¬(On(e; []; A))
+proof
+  intro A
+  intro e
+  intro p
+  elim 3
+qed
+
+theorem on_cons_head :
+  ∀A:U{i}. ∀e:A. ∀t:List A. On(e; e :: t; A)
+proof
+  intro A
+  intro e
+  intro t
+  reduce
+  left
+  eq
+qed
+
+theorem on_cons_tail :
+  ∀A:U{i}. ∀e:A. ∀h:A. ∀t:List A. On(e; t; A) → On(e; h :: t; A)
+proof
+  intro A
+  intro e
+  intro h
+  intro t
+  intro p
+  reduce
+  right
+  hyp
+qed
+
+--------------------------------------------------------------------------------
+-- Non-repetition
+--------------------------------------------------------------------------------
+
+theorem unique_nil :
+  ∀A:U{i}. Unique([]; A)
+proof
+  intro A
+  intro
+qed
+
+theorem unique_cons :
+  ∀A:U{i}. ∀h:A. ∀t:List A.
+    ¬(On(h; t; A)) → Unique(t; A) → Unique(h :: t; A)
+proof
+  intro A
+  intro h
+  intro t
+  intro n
+  intro u
+  reduce
+  split THENL [hyp, hyp]
+qed
+
+--------------------------------------------------------------------------------
+-- Fold / “generalize to list” (Figure 11.3)
+--------------------------------------------------------------------------------
+
+-- The fold of Figure 11.3, specialised to integer sum (the book’s `sum`).
+theorem fold_sum_cons :
+  list_ind (1 :: 2 :: []) 0 (h, t, ih. h + ih) = 1 + list_ind (2 :: []) 0 (h, t, ih. h + ih) ∈ Int
+proof
+  eq
+qed
+
+theorem sum_nil :
+  Sum([]) = 0 ∈ Int
+proof
+  eq
+qed
+
+theorem sum_three :
+  Sum([1, 2, 3]) = 6 ∈ Int
+proof
+  eq
+qed
+
+--------------------------------------------------------------------------------
+-- Append and map
+--------------------------------------------------------------------------------
+
+theorem append_nil :
+  ∀A:U{i}. ∀ys:List A. Append([]; ys) = ys ∈ List A
+proof
+  intro A
+  intro ys
+  auto
+qed
+
+theorem append_cons :
+  Append(1 :: []; 2 :: []) = 1 :: 2 :: [] ∈ List Int
+proof
+  auto
+qed
+
+theorem append_assoc_closed :
+  Append(Append(1 :: []; 2 :: []); 3 :: []) = Append(1 :: []; Append(2 :: []; 3 :: [])) ∈ List Int
+proof
+  eq THEN auto
+qed
+
+theorem map_nil :
+  ∀A:U{i}. ∀B:U{i}. ∀f:(A → B). Map(f; []) = [] ∈ List B
+proof
+  intro A
+  intro B
+  intro f
+  auto
+qed
+
+theorem map_add1 :
+  Map((λn. n + 1); [0, 1]) = [1, 2] ∈ List Int
+proof
+  auto
+qed

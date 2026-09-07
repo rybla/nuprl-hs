@@ -32,6 +32,15 @@ exampleTests =
                   , "examples/intersection.nuprl"
                   , "examples/sets.nuprl"
                   , "examples/quotients.nuprl"
+                  , "examples/choice.nuprl"
+                  , "examples/cps.nuprl"
+                  , "examples/existence.nuprl"
+                  , "examples/nd.nuprl"
+                  , "examples/listprog.nuprl"
+                  , "examples/combinatory.nuprl"
+                  , "examples/hoare.nuprl"
+                  , "examples/regular.nuprl"
+                  , "examples/euclid.nuprl"
                   ]
             mapM_ checkFile files
     ]

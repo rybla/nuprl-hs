@@ -1,0 +1,248 @@
+-- | Continuation-passing style as a double-negation translation.
+--
+-- `Cont(A; R) = (A → R) → R` is the type of computations of `A` in
+-- continuation-passing style with answer type `R`. Taking `R = False`
+-- recovers double negation: `Cont(A; False) = ¬¬A`.
+--
+-- Return and bind are the continuation monad. The Kolmogorov / Gödel–Gentzen
+-- translation of classical logic is this CPS transform at `R = False`:
+-- `A → ¬¬A` is return, and `¬¬¬A → ¬A` is the constructive triple-negation
+-- law. Full DNE `¬¬A → A` is the classical `call/cc` (Peirce), and is not
+-- derived. Irrefutability of excluded middle *is* constructive.
+theory CPS
+
+abs DN(A) == ¬¬A
+abs Cont(A; R) == (A → R) → R
+abs Stable(A) == ¬¬A → A
+
+soft DN, Cont, Stable
+
+--------------------------------------------------------------------------------
+-- The continuation monad
+--------------------------------------------------------------------------------
+
+-- Return: `a ↦ λk. k a`. At `R = False` this is `A → ¬¬A`.
+theorem cont_return :
+  ∀A:U{i}. ∀R:U{i}. A → Cont(A; R)
+proof
+  intro A
+  intro R
+  intro a
+  intro k
+  elim 4 with a THENL [hyp, hyp]
+qed
+
+theorem dni :
+  ∀A:U{i}. A → ¬¬A
+proof
+  intro A
+  lemma cont_return [A, False] THEN hyp
+qed
+
+-- Bind / map-continuation. At `R = False` this is ` (A → ¬¬B) → ¬¬A → ¬¬B `.
+theorem cont_bind :
+  ∀A:U{i}. ∀B:U{i}. ∀R:U{i}.
+    (A → Cont(B; R)) → Cont(A; R) → Cont(B; R)
+proof
+  intro A
+  intro B
+  intro R
+  intro f
+  intro ca
+  intro k
+  elim 5 with (λa. f a k) THENL [
+    eq THEN elim 4 with x THENL [hyp, elim 8 with k THENL [hyp, hyp]],
+    hyp
+  ]
+qed
+
+theorem dn_map :
+  ∀A:U{i}. ∀B:U{i}. (A → B) → ¬¬A → ¬¬B
+proof
+  intro A
+  intro B
+  intro f
+  intro nna
+  intro nb
+  elim 4 with (λa. nb (f a)) THENL [
+    eq THEN elim 3 with x THENL [hyp, elim 5 with y THENL [hyp, elim 8]],
+    hyp
+  ]
+qed
+
+theorem dn_bind :
+  ∀A:U{i}. ∀B:U{i}. (A → ¬¬B) → ¬¬A → ¬¬B
+proof
+  intro A
+  intro B
+  lemma cont_bind [A, B, False] THEN hyp
+qed
+
+--------------------------------------------------------------------------------
+-- Triple negation and stability
+--------------------------------------------------------------------------------
+
+-- `¬¬¬A → ¬A` is constructive (unlike `¬¬A → A`).
+theorem triple_neg :
+  ∀A:U{i}. ¬¬¬A → ¬A
+proof
+  intro A
+  intro nnn
+  intro a
+  lemma dni [A] THEN elim 4 with a THENL [hyp, elim 2 with y THENL [hyp, hyp]]
+qed
+
+-- Call/cc as Peirce, `((A → R) → A) → A`, is classical: with `R = False`
+-- it is `(¬A → A) → A`, and DNE at every type yields it. The constructive
+-- fragment stops at triple negation and at `Stable` from a decision.
+
+theorem stable_from_em :
+  ∀A:U{i}. (A ∨ ¬A) → Stable(A)
+proof
+  intro A
+  intro em
+  intro nna
+  elim 2 THENL [hyp, elim 3 with v THENL [hyp, elim 5]]
+qed
+
+--------------------------------------------------------------------------------
+-- Double-negation translation of the connectives
+--------------------------------------------------------------------------------
+
+theorem dn_and_intro :
+  ∀A:U{i}. ∀B:U{i}. ¬¬A → ¬¬B → ¬¬(A ∧ B)
+proof
+  intro A
+  intro B
+  intro nna
+  intro nnb
+  intro n
+  cut (A → False) as kA THENL [
+    intro a THEN elim 4 with (λb. n (<a, b>)) THENL [
+      eq THEN elim 5 with (<a, x>) THENL [split THENL [hyp, hyp], hyp],
+      hyp
+    ],
+    elim 3 with kA THENL [hyp, hyp]
+  ]
+qed
+
+theorem dn_and_elim_left :
+  ∀A:U{i}. ∀B:U{i}. ¬¬(A ∧ B) → ¬¬A
+proof
+  intro A
+  intro B
+  intro p
+  intro na
+  elim 3 with (λab. let <u, v> = ab in na u) THENL [
+    eq THEN elim 5 THEN elim 4 with u THENL [hyp, hyp],
+    hyp
+  ]
+qed
+
+theorem dn_and_elim_right :
+  ∀A:U{i}. ∀B:U{i}. ¬¬(A ∧ B) → ¬¬B
+proof
+  intro A
+  intro B
+  intro p
+  intro nb
+  elim 3 with (λab. let <u, v> = ab in nb v) THENL [
+    eq THEN elim 5 THEN elim 4 with v THENL [hyp, hyp],
+    hyp
+  ]
+qed
+
+theorem dn_or_left :
+  ∀A:U{i}. ∀B:U{i}. ¬¬A → ¬¬(A ∨ B)
+proof
+  intro A
+  intro B
+  intro nna
+  intro n
+  elim 3 with (λa. n (inl a)) THENL [
+    eq THEN elim 4 with (inl x) THENL [left THEN hyp, hyp],
+    hyp
+  ]
+qed
+
+theorem dn_or_right :
+  ∀A:U{i}. ∀B:U{i}. ¬¬B → ¬¬(A ∨ B)
+proof
+  intro A
+  intro B
+  intro nnb
+  intro n
+  elim 3 with (λb. n (inr b)) THENL [
+    eq THEN elim 4 with (inr x) THENL [right THEN hyp, hyp],
+    hyp
+  ]
+qed
+
+theorem dn_implies :
+  ∀A:U{i}. ∀B:U{i}. (A → ¬¬B) → ¬¬A → ¬¬B
+proof
+  intro A
+  intro B
+  lemma dn_bind [A, B] THEN hyp
+qed
+
+--------------------------------------------------------------------------------
+-- Irrefutability of excluded middle (constructive)
+--------------------------------------------------------------------------------
+
+theorem lem_irrefutable :
+  ∀A:U{i}. ¬¬(A ∨ ¬A)
+proof
+  intro A
+  intro n
+  elim 2 with (inr (λa. n (inl a))) THENL [
+    eq THEN eq THEN elim 2 with (inl x) THENL [eq THEN hyp, hyp],
+    hyp
+  ]
+qed
+
+-- Kolmogorov translation of a judgement: prove `¬¬A` instead of `A`.
+theorem kolmogorov_em :
+  ∀A:U{i}. DN(A ∨ ¬A)
+proof
+  lemma lem_irrefutable THEN hyp
+qed
+
+--------------------------------------------------------------------------------
+-- CBV function CPS: `A → (B → R) → R`
+--------------------------------------------------------------------------------
+
+abs CBVArr(A; B; R) == A → Cont(B; R)
+
+soft CBVArr
+
+theorem cbv_id :
+  ∀A:U{i}. ∀R:U{i}. CBVArr(A; A; R)
+proof
+  intro A
+  intro R
+  intro a
+  intro k
+  elim 4 with a THENL [hyp, hyp]
+qed
+
+theorem cbv_compose :
+  ∀A:U{i}. ∀B:U{i}. ∀C:U{i}. ∀R:U{i}.
+    CBVArr(B; C; R) → CBVArr(A; B; R) → CBVArr(A; C; R)
+proof
+  intro A
+  intro B
+  intro C
+  intro R
+  intro g
+  intro f
+  intro a
+  intro k
+  elim 6 with a THENL [
+    hyp,
+    elim 9 with (λb. g b k) THENL [
+      eq THEN elim 5 with x THENL [hyp, elim 11 with k THENL [hyp, hyp]],
+      hyp
+    ]
+  ]
+qed

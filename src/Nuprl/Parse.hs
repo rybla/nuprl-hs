@@ -15,7 +15,7 @@ module Nuprl.Parse
 
 import Control.Monad (void, when)
 import Control.Monad.Combinators.Expr
-import Data.Char (isAlphaNum, isUpper)
+import Data.Char (isAlpha, isAlphaNum, isUpper)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Void (Void)
@@ -85,7 +85,13 @@ identChar :: Parser Char
 identChar = satisfy (\c -> isAlphaNum c || c == '_' || c == '\'') <?> "identifier character"
 
 identStart :: Parser Char
-identStart = letterChar <|> char '_'
+identStart =
+  -- `λ`, `∀`, `∃`, `⋂`, `¬` begin terms, not identifiers (`n (λx. t)`
+  -- must not parse the `λx` as a binder name).
+  satisfy (\c -> isAlpha c && c `notElem` identExclude) <|> char '_'
+
+identExclude :: [Char]
+identExclude = "λ∀∃⋂¬"
 
 -- | Identifier that may be a reserved word (used for library object names).
 rawIdent :: Parser Text
@@ -162,6 +168,7 @@ reserved =
   , "lemma"
   , "thin"
   , "with"
+  , "as"
   , "THEN"
   , "THENL"
   , "ORELSE"
@@ -512,12 +519,12 @@ pKeywordAtom =
     ]
 
 pUniverse :: Parser Term
-pUniverse = do
+pUniverse = try $ do
   _ <- lexeme . try $ string "U" <* notFollowedBy identChar
   TUniverse <$> braces pLevel
 
 pProp :: Parser Term
-pProp = do
+pProp = try $ do
   _ <- lexeme . try $ string "P" <* notFollowedBy identChar
   TProp <$> braces pLevel
 

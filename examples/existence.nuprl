@@ -1,0 +1,185 @@
+-- | Weak vs. strong existence.
+--
+-- CTT distinguishes several readings of “there exists”:
+--
+--   * Strong  `∃x:A. P x`  — a pair `<x, p>`; the witness is in the extract.
+--   * Set     `{x:A | P x}` — the witness is kept, the proof of `P x` is hidden.
+--   * Squash  `[∃x:A. P x]` — only the fact of existence; extract is `Ax`.
+--   * Weak    `¬¬∃x:A. P x` — irrefutability; no witness, but no counterexample.
+--
+-- Strong implies the others. Squash implies weak, because `False` is
+-- squash-stable (NuPRL §9.12). The converses need excluded middle or a
+-- decision procedure (Markov’s principle on ℕ).
+theory Existence
+
+abs StrongEx(A; F) == ∃x:A. F x
+abs SetEx(A; F) == {x:A | F x}
+abs SquashEx(A; F) == [∃x:A. F x]
+abs WeakEx(A; F) == ¬¬(∃x:A. F x)
+abs UniqueEx(A; F) ==
+  (∃x:A. F x) ∧ (∀x:A. ∀y:A. F x → F y → x = y ∈ A)
+
+soft StrongEx, SetEx, SquashEx, WeakEx, UniqueEx
+
+--------------------------------------------------------------------------------
+-- Strong existence has a witness
+--------------------------------------------------------------------------------
+
+theorem strong_intro :
+  ∀A:U{i}. ∀P:(A → U{i}). ∀a:A. P a → StrongEx(A; P)
+proof
+  intro A
+  intro P
+  intro a
+  intro p
+  exists a THENL [hyp, hyp]
+qed
+
+theorem strong_witness :
+  ∀A:U{i}. ∀P:(A → U{i}). StrongEx(A; P) → A
+proof
+  intro A
+  intro P
+  intro p
+  elim 3
+  hyp
+qed
+
+theorem strong_elim :
+  ∀A:U{i}. ∀P:(A → U{i}). ∀C:U{i}.
+    StrongEx(A; P) → (∀x:A. P x → C) → C
+proof
+  intro A
+  intro P
+  intro C
+  intro p
+  intro f
+  elim 4
+  elim 5 with u THENL [hyp, elim 8 with v THENL [hyp, hyp]]
+qed
+
+--------------------------------------------------------------------------------
+-- Strong → set / squash / weak
+--------------------------------------------------------------------------------
+
+theorem strong_to_set :
+  ∀A:U{i}. ∀P:(A → U{i}). StrongEx(A; P) → SetEx(A; P)
+proof
+  intro A
+  intro P
+  intro p
+  elim 3
+  intro with u THENL [hyp, hyp]
+qed
+
+theorem set_to_carrier :
+  ∀A:U{i}. ∀P:(A → U{i}). SetEx(A; P) → A
+proof
+  intro A
+  intro P
+  intro s
+  elim 3
+  hyp
+qed
+
+theorem strong_to_squash :
+  ∀A:U{i}. ∀P:(A → U{i}). StrongEx(A; P) → SquashEx(A; P)
+proof
+  intro A
+  intro P
+  intro p
+  intro
+  hyp
+qed
+
+theorem dni :
+  ∀A:U{i}. A → ¬¬A
+proof
+  intro A
+  intro x
+  intro n
+  elim 3 with x THENL [hyp, hyp]
+qed
+
+theorem strong_to_weak :
+  ∀A:U{i}. ∀P:(A → U{i}). StrongEx(A; P) → WeakEx(A; P)
+proof
+  intro A
+  intro P
+  lemma dni [∃x:A. P x] THEN hyp
+qed
+
+--------------------------------------------------------------------------------
+-- Squash → weak, because False is squash-stable
+--------------------------------------------------------------------------------
+
+-- From `[A]` and `¬A` one obtains `False` by unhiding `A`. The extract is
+-- `Ax`: nothing is recovered from the squash.
+theorem squash_to_irrefutable :
+  ∀A:U{i}. [A] → ¬¬A
+proof
+  intro A
+  intro s
+  intro n
+  elim 2
+  elim 3 with u THENL [hyp, elim 5]
+qed
+
+theorem squash_ex_to_weak :
+  ∀A:U{i}. ∀P:(A → U{i}). SquashEx(A; P) → WeakEx(A; P)
+proof
+  intro A
+  intro P
+  lemma squash_to_irrefutable [∃x:A. P x] THEN hyp
+qed
+
+-- The extract of a squash is always `Ax`.
+theorem squash_ax :
+  Ax ∈ [True]
+proof
+  auto
+qed
+
+--------------------------------------------------------------------------------
+-- Unique existence still yields a witness (strong)
+--------------------------------------------------------------------------------
+
+theorem unique_witness :
+  ∀A:U{i}. ∀P:(A → U{i}). UniqueEx(A; P) → A
+proof
+  intro A
+  intro P
+  intro p
+  elim 3
+  elim 4
+  hyp
+qed
+
+theorem unique_prop :
+  ∀A:U{i}. ∀P:(A → U{i}). UniqueEx(A; P) → ∃x:A. P x
+proof
+  intro A
+  intro P
+  intro p
+  elim 3
+  hyp
+qed
+
+--------------------------------------------------------------------------------
+-- A closed search: existence on a finite, decidable domain is strong
+--------------------------------------------------------------------------------
+
+-- `int_eq` decides equality, so a witness can be selected.
+theorem exists_zero_or_one :
+  ∃n:Int. n = 0 ∈ Int ∨ n = 1 ∈ Int
+proof
+  exists 0 THENL [eq, left THEN eq]
+qed
+
+-- Squashing that fact hides the `0`.
+theorem exists_zero_or_one_weak :
+  [∃n:Int. n = 0 ∈ Int ∨ n = 1 ∈ Int]
+proof
+  intro
+  lemma exists_zero_or_one THEN hyp
+qed

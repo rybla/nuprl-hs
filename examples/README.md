@@ -20,6 +20,15 @@ stack exec nuprl -- check examples/logic.nuprl
 | `intersection.nuprl` | Family intersection `⋂x:A. B` and independent `A ∩ B` |
 | `sets.nuprl` | Set types `{x:A \| P}`, empty/full/singleton, Nat, Positive |
 | `quotients.nuprl` | Quotient types, `ℤ/2ℤ`, successor vs. max (§2.4, §10.3) |
+| `choice.nuprl` | Constructive axiom of choice (independent and dependent) |
+| `cps.nuprl` | CPS as double-negation translation; irrefutability of LEM |
+| `existence.nuprl` | Strong vs. weak existence, squash, unique existence |
+| `nd.nuprl` | Depth-indexed object logic; soundness of natural deduction |
+| `listprog.nuprl` | Lists as a programming theory (Constable et al. §11.2) |
+| `combinatory.nuprl` | SKI combinators and Church encodings |
+| `hoare.nuprl` | Hoare triples over the streams-of-states model (§11.6) |
+| `regular.nuprl` | Regular sets / Kleene algebra (Constable et al. §11.4) |
+| `euclid.nuprl` | Verified Euclidean algorithm on closed integers |
 
 Theorems are checked by replaying their `proof` scripts on the kernel. A
 failing script is a check error, not a silent skip.

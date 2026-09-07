@@ -1,0 +1,237 @@
+-- | A depth-indexed object logic and the soundness of natural deduction.
+--
+-- Formulas are indexed by a depth `n`, as `Statement(n)` is in the
+-- denotational example (Constable et al. §11.6): `Fml(0)` is empty, and
+-- `Fml(n+1)` may mention subformulas of depth `n`. Atoms, conjunction,
+-- implication and negation are the four constructors. A valuation
+-- `v : Atom → U{i}` interprets a formula as a type; each ND rule is a
+-- combinator on those types (soundness).
+theory ND
+
+comment book "Depth-indexed object syntax, in the style of Constable et al. §11.6."
+
+abs Fst(p) == let <u, v> = p in u
+abs Snd(p) == let <u, v> = p in v
+
+-- Fml(n+1) = Atom ⊎ (T × T) ⊎ (T × T) ⊎ T
+--   inl a              atom a
+--   inr (inl <A,B>)    A ∧ B
+--   inr (inr (inl <A,B>))  A → B
+--   inr (inr (inr A))  ¬A
+abs Fml(n) ==
+  ind(n; x,T. Void; Void; x,T. Atom ⊎ ((T × T) ⊎ ((T × T) ⊎ T)))
+
+soft Fst, Snd, Fml
+
+--------------------------------------------------------------------------------
+-- Depth 0 is empty; depth 1 is atoms
+--------------------------------------------------------------------------------
+
+theorem fml0_empty :
+  Fml(0) = Void ∈ U{i}
+proof
+  eq
+qed
+
+theorem fml1_unfold :
+  Fml(1) = (Atom ⊎ ((Void × Void) ⊎ ((Void × Void) ⊎ Void))) ∈ U{i}
+proof
+  eq THEN auto
+qed
+
+theorem atom_is_fml1 :
+  inl "P" ∈ Fml(1)
+proof
+  auto
+qed
+
+--------------------------------------------------------------------------------
+-- Interpretation at depth 1 (atoms) and depth 2 (one connective)
+--------------------------------------------------------------------------------
+
+abs Inter1(v; f) ==
+  decide f of
+    inl a => v a
+  | inr r => False
+
+abs Inter2(v; f) ==
+  decide f of
+    inl a => v a
+  | inr r =>
+      decide r of
+        inl p => Inter1(v; Fst(p)) ∧ Inter1(v; Snd(p))
+      | inr s =>
+          decide s of
+            inl p => Inter1(v; Fst(p)) → Inter1(v; Snd(p))
+          | inr n => ¬(Inter1(v; n))
+
+soft Inter1, Inter2
+
+-- A valuation that sends every atom to True.
+abs Vtrue == λa. True
+
+soft Vtrue
+
+theorem inter1_atom :
+  ∀v:(Atom → U{i}). ∀a:Atom. Inter1(v; inl a) = v a ∈ U{i}
+proof
+  intro v
+  intro a
+  eq THEN auto
+qed
+
+theorem inter1_P_true :
+  Inter1(Vtrue; inl "P")
+proof
+  reduce
+  intro
+qed
+
+--------------------------------------------------------------------------------
+-- Soundness of ND combinators (on the interpreted types)
+--------------------------------------------------------------------------------
+
+-- Hypothesis / axiom: an assumption is a realizer.
+theorem nd_hyp :
+  ∀A:U{i}. A → A
+proof
+  intro A
+  intro x
+  hyp
+qed
+
+-- ∧-introduction.
+theorem nd_and_i :
+  ∀A:U{i}. ∀B:U{i}. A → B → A ∧ B
+proof
+  intro A
+  intro B
+  intro a
+  intro b
+  split THENL [hyp 3, hyp 4]
+qed
+
+-- ∧-elimination.
+theorem nd_and_e1 :
+  ∀A:U{i}. ∀B:U{i}. A ∧ B → A
+proof
+  intro A
+  intro B
+  intro p
+  elim 3
+  hyp
+qed
+
+theorem nd_and_e2 :
+  ∀A:U{i}. ∀B:U{i}. A ∧ B → B
+proof
+  intro A
+  intro B
+  intro p
+  elim 3
+  hyp
+qed
+
+-- →-introduction is λ-abstraction; →-elimination is application.
+theorem nd_imp_i :
+  ∀A:U{i}. ∀B:U{i}. (A → B) → (A → B)
+proof
+  intro A
+  intro B
+  intro f
+  hyp
+qed
+
+theorem nd_imp_e :
+  ∀A:U{i}. ∀B:U{i}. (A → B) → A → B
+proof
+  intro A
+  intro B
+  intro f
+  intro x
+  elim 3 with x THENL [hyp, hyp]
+qed
+
+-- ¬-introduction / explosion.
+theorem nd_not_i :
+  ∀A:U{i}. (A → False) → ¬A
+proof
+  intro A
+  intro f
+  hyp
+qed
+
+theorem nd_false_e :
+  ∀A:U{i}. False → A
+proof
+  intro A
+  intro p
+  elim 2
+qed
+
+-- K and S, the Hilbert-style basis, as ND derivations.
+theorem nd_k :
+  ∀A:U{i}. ∀B:U{i}. A → B → A
+proof
+  intro A
+  intro B
+  intro x
+  intro y
+  hyp 3
+qed
+
+theorem nd_s :
+  ∀A:U{i}. ∀B:U{i}. ∀C:U{i}.
+    (A → B → C) → (A → B) → A → C
+proof
+  intro A
+  intro B
+  intro C
+  intro f
+  intro g
+  intro x
+  elim 5 with x THENL [
+    hyp,
+    elim 4 with x THENL [hyp, elim 8 with y THENL [hyp, hyp]]
+  ]
+qed
+
+--------------------------------------------------------------------------------
+-- Soundness at depth 2: ∧-intro of two atoms
+--------------------------------------------------------------------------------
+
+theorem and_intro_sound :
+  ∀v:(Atom → U{i}). ∀a:Atom. ∀b:Atom.
+    Inter1(v; inl a) → Inter1(v; inl b) →
+    Inter2(v; inr (inl (<inl a, inl b>)))
+proof
+  intro v
+  intro a
+  intro b
+  intro pa
+  intro pb
+  reduce
+  split THENL [hyp 4, hyp 5]
+qed
+
+theorem imp_intro_sound :
+  ∀v:(Atom → U{i}). ∀a:Atom. ∀b:Atom.
+    (Inter1(v; inl a) → Inter1(v; inl b)) →
+    Inter2(v; inr (inr (inl (<inl a, inl b>))))
+proof
+  intro v
+  intro a
+  intro b
+  intro f
+  reduce
+  hyp
+qed
+
+-- A complete ND derivation of `P → P` at depth 2, under `Vtrue`.
+theorem identity_derivation :
+  Inter2(Vtrue; inr (inr (inl (<inl "P", inl "P">))))
+proof
+  reduce
+  intro x
+  hyp
+qed

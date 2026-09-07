@@ -132,4 +132,20 @@ tacticTests =
         case prove coreLibrary g tx of
           Left e -> assertFailure (show (prettyError e))
           Right _ -> pure ()
+    , testCase "squash to irrefutable ([A] → ¬¬A)" $ do
+        let g = mustParse "∀A:U{i}. [A] → ¬¬A"
+            tx = mustTac "intro A; intro s; intro n; elim 2; elim 3 with u THENL [hyp, elim 5]"
+        case prove coreLibrary g tx of
+          Left e -> assertFailure (show (prettyError e))
+          Right _ -> pure ()
+    , testCase "constructive AC extracts a choice function" $ do
+        let g =
+              mustParse
+                "∀A:U{i}. ∀B:U{i}. ∀R:(A → B → U{i}). (∀x:A. ∃y:B. R x y) → ∃f:(A → B). ∀x:A. R x (f x)"
+            tx =
+              mustTac
+                "intro A; intro B; intro R; intro g; exists (λz. let <u, v> = g z in u) THENL [eq THEN elim 4 with x THENL [hyp, elim 6 THEN hyp], intro x THEN elim 4 with x THENL [hyp, elim 6 THEN hyp]]"
+        case prove coreLibrary g tx of
+          Left e -> assertFailure (show (prettyError e))
+          Right _ -> pure ()
     ]

@@ -124,7 +124,7 @@ Every completed proof is a tree of primitive refinements (`Nuprl.Rule`):
 
 - `hyp N` — use a visible hypothesis
 - `intro` — type-directed introduction (λ, pair, inl/inr, Ax, intersection, …)
-- `elim N` — type-directed elimination (apply, spread, decide, induction, intersection instantiation, quotient functionality, …)
+- `elim N` — type-directed elimination (apply, spread, decide, induction, intersection instantiation, quotient functionality, squash on a squash-stable conclusion, …)
 - `eq` — canonical equality / membership (including set, intersection, and quotient membership, and application congruence)
 - `compute` — weak-head reduce the conclusion
 - `cut T` — assert an intermediate type

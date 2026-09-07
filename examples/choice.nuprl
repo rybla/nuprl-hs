@@ -1,0 +1,122 @@
+-- | The constructive axiom of choice.
+--
+-- In computational type theory, choice is a *theorem*, not an extra axiom.
+-- A proof of `∀x:A. ∃y:B. R x y` *is* a function that, for each `x`, returns
+-- a pair `<y, p>` with `p : R x y`. Projecting yields a choice function
+-- `f x = y` together with a proof that `R x (f x)` (Martin-Löf; NuPRL §2.3).
+-- The extract is that projection.
+--
+-- Classical AC (from `∀x. [∃y. R x y]`) is not constructive: the squash
+-- hides the witness, so no function can be extracted. Unique choice from a
+-- squash needs a uniqueness proof and is not derived here.
+theory Choice
+
+abs Fst(p) == let <u, v> = p in u
+abs Snd(p) == let <u, v> = p in v
+
+soft Fst, Snd
+
+--------------------------------------------------------------------------------
+-- Projections of a dependent pair
+--------------------------------------------------------------------------------
+
+theorem pair_beta_fst :
+  ∀A:U{i}. ∀B:(A → U{i}). ∀x:A. ∀y:B x. Fst(<x, y>) = x ∈ A
+proof
+  intro A
+  intro B
+  intro x
+  intro y
+  auto
+qed
+
+theorem pair_beta_snd :
+  ∀A:U{i}. ∀B:(A → U{i}). ∀x:A. ∀y:B x. Snd(<x, y>) = y ∈ B x
+proof
+  intro A
+  intro B
+  intro x
+  intro y
+  auto
+qed
+
+--------------------------------------------------------------------------------
+-- Type-theoretic axiom of choice
+--------------------------------------------------------------------------------
+
+-- Independent form: a relation `R : A → B → U{i}`.
+theorem ac :
+  ∀A:U{i}. ∀B:U{i}. ∀R:(A → B → U{i}).
+    (∀x:A. ∃y:B. R x y) → ∃f:(A → B). ∀x:A. R x (f x)
+proof
+  intro A
+  intro B
+  intro R
+  intro g
+  exists (λz. Fst(g z)) THENL [
+    eq
+    elim 4 with x THENL [hyp, elim 6 THEN hyp],
+    intro x
+    elim 4 with x THENL [hyp, elim 6 THEN hyp]
+  ]
+qed
+
+-- Dependent form: the family `B` may mention `x`.
+theorem dac :
+  ∀A:U{i}. ∀B:(A → U{i}). ∀R:((x:A) → B x → U{i}).
+    (∀x:A. ∃y:B x. R x y) → ∃f:((x:A) → B x). ∀x:A. R x (f x)
+proof
+  intro A
+  intro B
+  intro R
+  intro g
+  exists (λz. Fst(g z)) THENL [
+    eq
+    elim 4 with x THENL [hyp, elim 6 THEN hyp],
+    intro x
+    elim 4 with x THENL [hyp, elim 6 THEN hyp]
+  ]
+qed
+
+-- The converse is pairing: a choice function is a total relation.
+theorem ac_conv :
+  ∀A:U{i}. ∀B:U{i}. ∀R:(A → B → U{i}).
+    (∃f:(A → B). ∀x:A. R x (f x)) → ∀x:A. ∃y:B. R x y
+proof
+  intro A
+  intro B
+  intro R
+  intro p
+  intro x
+  elim 4
+  exists (u x) THENL [
+    auto,
+    elim 7 with x THENL [hyp, hyp]
+  ]
+qed
+
+--------------------------------------------------------------------------------
+-- Countable choice as an instance, and a concrete choice function
+--------------------------------------------------------------------------------
+
+-- ℕ is `{n:Int | 0 ≤ n}` in this library; the same proof works for Int.
+theorem ac_int :
+  ∀R:(Int → Int → U{i}).
+    (∀n:Int. ∃m:Int. R n m) → ∃f:(Int → Int). ∀n:Int. R n (f n)
+proof
+  lemma ac [Int, Int] THEN hyp
+qed
+
+-- Choosing the first projection of a pair is a choice function for
+-- `R p y == y = Fst(p) ∈ A`.
+theorem choose_fst :
+  ∀A:U{i}. ∀B:U{i}. ∃f:(A × B → A). ∀p:A × B. f p = Fst(p) ∈ A
+proof
+  intro A
+  intro B
+  exists (λp. Fst(p)) THENL [
+    auto,
+    intro p
+    auto
+  ]
+qed

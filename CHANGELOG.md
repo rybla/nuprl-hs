@@ -6,6 +6,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to the
 [Haskell Package Versioning Policy](https://pvp.haskell.org/).
 
+## 0.4.0.0
+
+### Added
+
+- Example theories: constructive axiom of choice (`choice.nuprl`), CPS as
+  double-negation translation (`cps.nuprl`), weak vs. strong existence
+  (`existence.nuprl`), depth-indexed natural deduction (`nd.nuprl`), lists as
+  a programming theory (`listprog.nuprl`, Constable et al. §11.2), combinatory
+  logic and Church encodings (`combinatory.nuprl`), Hoare logic over streams
+  of states (`hoare.nuprl`), regular sets / Kleene algebra (`regular.nuprl`,
+  §11.4), and a verified Euclidean algorithm (`euclid.nuprl`).
+
+### Fixed
+
+- Type equality uses computational conversion, so `P (Fst(<u,v>))` converts
+  with `P u`.
+- Dependent pair (and union) elimination substitutes `<u,v>` (resp. `inl` /
+  `inr`) in the conclusion, matching list/integer induction.
+- Function elimination remembers `f t` as the new hypothesis, so projections
+  of a Σ-result can be reduced.
+- Squash elimination is allowed on squash-stable conclusions (NuPRL §9.12).
+- `P` and `U` as variables are no longer stolen by `P{i}` / `U{i}` parsers.
+- `λ` is not an identifier character, so `n (λx. t)` is application.
+- `cut T as x` no longer parses `as` as an applied variable.
+
 ## 0.3.0.0
 
 ### Added

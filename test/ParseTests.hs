@@ -8,6 +8,7 @@ import Nuprl.Error
 import Nuprl.Parse
 import Nuprl.Pretty
 import Nuprl.Subst
+import Nuprl.Tactic
 import Nuprl.Term
 
 mustParse :: Text -> Term
@@ -162,5 +163,14 @@ parseTests =
         let t = mustParse "ind(3; x,ih. 0; 0; k,r. r + 1)"
         case t of
           TInd (TNat 3) _ _ _ (TNat 0) _ _ _ -> pure ()
+          other -> assertFailure (show other)
+    , testCase "lambda argument is application, not a binder named λx" $ do
+        let t = mustParse "n (λx. x + 1) 0"
+        case t of
+          TApply (TApply (TVar (Var "n")) (TLambda (Var "x") _)) (TNat 0) -> pure ()
+          other -> assertFailure (show other)
+    , testCase "cut as does not parse `as` as an applied variable" $ do
+        case parseTactic "cut True as y THENL [intro, hyp]" of
+          Right (TxThenL (TxCut TTrue (Just (Var "y"))) _) -> pure ()
           other -> assertFailure (show other)
     ]

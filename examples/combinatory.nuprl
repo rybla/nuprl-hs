@@ -1,0 +1,258 @@
+-- | Combinatory logic and Church encodings.
+--
+-- The SKI basis is complete for the typed λ-calculus: `S`, `K`, and `I`
+-- inhabit the corresponding combinatory types, and `S K K` converts with `I`.
+-- Church numerals are the polymorphic iterators
+-- `⋂A:U{i}. (A → A) → A → A`; booleans are `⋂A:U{i}. A → A → A`. Evaluation
+-- at `Int` recovers the intended arithmetic.
+theory Combinatory
+
+abs I == λx. x
+abs K == λx. λy. x
+abs S == λf. λg. λx. (f x) (g x)
+abs Bcomb == λf. λg. λx. f (g x)
+abs CFlip == λf. λx. λy. f y x
+abs W == λf. λx. f x x
+
+-- Church numerals (polymorphic iterators).
+abs CNat == ⋂A:U{i}. (A → A) → A → A
+abs C0 == λs. λz. z
+abs C1 == λs. λz. s z
+abs C2 == λs. λz. s (s z)
+abs C3 == λs. λz. s (s (s z))
+abs CSucc == λn. λs. λz. s (n s z)
+abs CPlus == λm. λn. λs. λz. m s (n s z)
+abs CMult == λm. λn. λs. m (n s)
+abs CToInt(n) == n (λx. x + 1) 0
+
+-- Church booleans.
+abs CBool == ⋂A:U{i}. A → A → A
+abs CTrue == λt. λf. t
+abs CFalse == λt. λf. f
+abs CIf(b) == b
+abs CAnd(p; q) == p q CFalse
+abs COr(p; q) == p CTrue q
+abs CNot(p) == p CFalse CTrue
+
+-- Church pairs.
+abs CPair(x; y) == λf. f x y
+abs CFst(p) == p (λx. λy. x)
+abs CSnd(p) == p (λx. λy. y)
+
+soft I, K, S, Bcomb, CFlip, W
+soft CNat, C0, C1, C2, C3, CSucc, CPlus, CMult, CToInt
+soft CBool, CTrue, CFalse, CIf, CAnd, COr, CNot
+soft CPair, CFst, CSnd
+
+--------------------------------------------------------------------------------
+-- SKI inhabit their types
+--------------------------------------------------------------------------------
+
+theorem i_ty :
+  ∀A:U{i}. A → A
+proof
+  intro A
+  intro x
+  hyp
+qed
+
+theorem k_ty :
+  ∀A:U{i}. ∀B:U{i}. A → B → A
+proof
+  intro A
+  intro B
+  intro x
+  intro y
+  hyp 3
+qed
+
+theorem s_ty :
+  ∀A:U{i}. ∀B:U{i}. ∀C:U{i}.
+    (A → B → C) → (A → B) → A → C
+proof
+  intro A
+  intro B
+  intro C
+  intro f
+  intro g
+  intro x
+  elim 5 with x THENL [
+    hyp,
+    elim 4 with x THENL [hyp, elim 8 with y THENL [hyp, hyp]]
+  ]
+qed
+
+theorem b_ty :
+  ∀A:U{i}. ∀B:U{i}. ∀C:U{i}. (B → C) → (A → B) → A → C
+proof
+  intro A
+  intro B
+  intro C
+  intro f
+  intro g
+  intro x
+  elim 5 with x THENL [hyp, elim 4 with y THENL [hyp, hyp]]
+qed
+
+-- `S K K` converts with `I`.
+theorem skk :
+  ∀A:U{i}. S K K = I ∈ (A → A)
+proof
+  intro A
+  eq THEN auto
+qed
+
+theorem ski_k :
+  ∀A:U{i}. ∀B:U{i}. ∀x:A. ∀y:B. K x y = x ∈ A
+proof
+  intro A
+  intro B
+  intro x
+  intro y
+  auto
+qed
+
+--------------------------------------------------------------------------------
+-- Church numerals
+--------------------------------------------------------------------------------
+
+theorem c0_ty :
+  C0 ∈ CNat
+proof
+  auto
+qed
+
+theorem c1_ty :
+  C1 ∈ CNat
+proof
+  auto
+qed
+
+theorem c2_ty :
+  C2 ∈ CNat
+proof
+  auto
+qed
+
+theorem c0_int :
+  CToInt(C0) = 0 ∈ Int
+proof
+  eq
+qed
+
+theorem c1_int :
+  CToInt(C1) = 1 ∈ Int
+proof
+  eq
+qed
+
+theorem c2_int :
+  CToInt(C2) = 2 ∈ Int
+proof
+  eq
+qed
+
+theorem c3_int :
+  CToInt(C3) = 3 ∈ Int
+proof
+  eq
+qed
+
+theorem csucc_2 :
+  CToInt(CSucc C2) = 3 ∈ Int
+proof
+  eq
+qed
+
+theorem cplus_2_3 :
+  CToInt(CPlus C2 C3) = 5 ∈ Int
+proof
+  eq
+qed
+
+theorem cmult_2_3 :
+  CToInt(CMult C2 C3) = 6 ∈ Int
+proof
+  eq
+qed
+
+theorem cplus_0 :
+  CToInt(CPlus C0 C2) = 2 ∈ Int
+proof
+  eq
+qed
+
+--------------------------------------------------------------------------------
+-- Church booleans
+--------------------------------------------------------------------------------
+
+theorem ctrue_ty :
+  CTrue ∈ CBool
+proof
+  auto
+qed
+
+theorem cfalse_ty :
+  CFalse ∈ CBool
+proof
+  auto
+qed
+
+theorem cif_true :
+  CIf(CTrue) 7 9 = 7 ∈ Int
+proof
+  eq
+qed
+
+theorem cif_false :
+  CIf(CFalse) 7 9 = 9 ∈ Int
+proof
+  eq
+qed
+
+theorem cand_tt :
+  CAnd(CTrue; CTrue) 1 0 = 1 ∈ Int
+proof
+  eq
+qed
+
+theorem cand_tf :
+  CAnd(CTrue; CFalse) 1 0 = 0 ∈ Int
+proof
+  eq
+qed
+
+theorem cor_ft :
+  COr(CFalse; CTrue) 1 0 = 1 ∈ Int
+proof
+  eq
+qed
+
+theorem cnot_t :
+  CNot(CTrue) 1 0 = 0 ∈ Int
+proof
+  eq
+qed
+
+--------------------------------------------------------------------------------
+-- Church pairs
+--------------------------------------------------------------------------------
+
+theorem cpair_fst :
+  CFst(CPair(3; 5)) = 3 ∈ Int
+proof
+  eq
+qed
+
+theorem cpair_snd :
+  CSnd(CPair(3; 5)) = 5 ∈ Int
+proof
+  eq
+qed
+
+-- A Church pair of Church numerals.
+theorem cpair_nats :
+  CToInt(CFst(CPair(C2; C3))) = 2 ∈ Int
+proof
+  eq
+qed

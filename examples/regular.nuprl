@@ -1,0 +1,207 @@
+-- | Regular sets and Kleene algebra, following Constable et al. §11.4.
+--
+-- Words are lists over an alphabet `E = Atom`. A “regular set” is a
+-- predicate `E* → U{i}` (a subset of `E*`). Union `r + s`, concatenation
+-- `r s`, and star `r*` are defined as in the book; containment and equality
+-- of sets are pointwise. The identities below are true of *all* subsets,
+-- not only the regular ones (the book’s observation after Figure 11.8).
+theory Regular
+
+comment book "Constable et al. §11.4: regular sets."
+
+abs E == Atom
+abs Estar == List Atom
+abs RE == Estar → U{i}
+
+abs Append(xs; ys) == list_ind xs (ys) (h, t, ih. h :: ih)
+abs Flatten(xss) == list_ind xss ([]) (h, t, ih. Append(h; ih))
+abs AllIn(r; ys) == list_ind ys True (h, t, v. r h ∧ v)
+
+abs Contained(r; s) == ∀x:Estar. r x → s x
+abs Req(r; s) == Contained(r; s) ∧ Contained(s; r)
+
+abs Plus(r; s) == λx. r x ∨ s x
+abs Concat(r; s) == λx. ∃u:Estar. ∃v:Estar. Append(u; v) = x ∈ Estar ∧ r u ∧ s v
+abs Star(r) ==
+  λx. ∃ys:List Estar. AllIn(r; ys) ∧ Flatten(ys) = x ∈ Estar
+abs EmptyR == λx. False
+abs Epsilon == λx. x = [] ∈ Estar
+abs Singleton(a) == λx. x = (a :: []) ∈ Estar
+
+soft E, Estar, RE, Append, Flatten, AllIn, Contained, Req
+soft Plus, Concat, Star, EmptyR, Epsilon, Singleton
+
+--------------------------------------------------------------------------------
+-- Append (the book’s `append_`)
+--------------------------------------------------------------------------------
+
+theorem append_nil :
+  ∀y:Estar. Append([]; y) = y ∈ Estar
+proof
+  intro y
+  auto
+qed
+
+theorem append_cons_closed :
+  Append("a" :: []; "b" :: []) = "a" :: "b" :: [] ∈ Estar
+proof
+  auto
+qed
+
+theorem flatten_nil :
+  Flatten([]) = [] ∈ Estar
+proof
+  eq
+qed
+
+theorem flatten_one :
+  Flatten(("a" :: []) :: []) = "a" :: [] ∈ Estar
+proof
+  auto
+qed
+
+--------------------------------------------------------------------------------
+-- Union (plus)
+--------------------------------------------------------------------------------
+
+theorem plus_left :
+  ∀r:RE. ∀s:RE. ∀x:Estar. r x → Plus(r; s) x
+proof
+  intro r
+  intro s
+  intro x
+  intro p
+  left
+  hyp
+qed
+
+theorem plus_right :
+  ∀r:RE. ∀s:RE. ∀x:Estar. s x → Plus(r; s) x
+proof
+  intro r
+  intro s
+  intro x
+  intro p
+  right
+  hyp
+qed
+
+theorem plus_comm :
+  ∀r:RE. ∀s:RE. Contained(Plus(r; s); Plus(s; r))
+proof
+  intro r
+  intro s
+  intro x
+  intro p
+  elim 4 THENL [right THEN hyp, left THEN hyp]
+qed
+
+theorem contained_refl :
+  ∀r:RE. Contained(r; r)
+proof
+  intro r
+  intro x
+  intro p
+  hyp
+qed
+
+--------------------------------------------------------------------------------
+-- Star
+--------------------------------------------------------------------------------
+
+-- The empty word is in every star (`star_lemma_1`).
+theorem star_nil :
+  ∀r:RE. Star(r) []
+proof
+  intro r
+  exists ([]) THENL [
+    auto,
+    split THENL [intro, eq]
+  ]
+qed
+
+-- `r ⊆ r*` (`star_lemma_2`), on a singleton word list.
+theorem star_one :
+  ∀r:RE. ∀u:Estar. r u → Star(r) u
+proof
+  intro r
+  intro u
+  intro p
+  exists (u :: []) THENL [
+    auto,
+    split THENL [
+      reduce THEN split THENL [hyp, intro],
+      auto
+    ]
+  ]
+qed
+
+-- Empty language: nothing is in `EmptyR`.
+theorem empty_none :
+  ∀x:Estar. ¬(EmptyR x)
+proof
+  intro x
+  intro p
+  elim 2
+qed
+
+-- `{ε}` contains the empty word.
+theorem epsilon_nil :
+  Epsilon []
+proof
+  eq
+qed
+
+theorem singleton_a :
+  Singleton("a") ("a" :: [])
+proof
+  eq THEN auto
+qed
+
+--------------------------------------------------------------------------------
+-- Kleene: `r* s*` is contained in `(r+s)*` at the empty word, and
+-- `(r+s)*` contains each of `r*` and `s*` (the book’s lemma_4 / lemma_2).
+--------------------------------------------------------------------------------
+
+theorem plus_star_nil :
+  ∀r:RE. ∀s:RE. Star(Plus(r; s)) []
+proof
+  intro r
+  intro s
+  lemma star_nil [Plus(r; s)] THEN hyp
+qed
+
+-- `r ⊆ r+s`, hence (with star_one) a word of `r` is in `(r+s)*`.
+theorem r_in_plus_star :
+  ∀r:RE. ∀s:RE. ∀u:Estar. r u → Star(Plus(r; s)) u
+proof
+  intro r
+  intro s
+  intro u
+  intro p
+  lemma star_one [Plus(r; s), u] THEN elim 5 THEN left THEN hyp
+qed
+
+-- Req is an equivalence: reflexivity.
+theorem req_refl :
+  ∀r:RE. Req(r; r)
+proof
+  intro r
+  split THENL [lemma contained_refl [r] THEN hyp, lemma contained_refl [r] THEN hyp]
+qed
+
+-- The two-sided Kleene identity at the empty word:
+-- `(r* s*)*` and `(r+s)*` both contain `ε`.
+theorem kleene_epsilon :
+  ∀r:RE. ∀s:RE. Star(Plus(r; s)) [] ∧ Star(r) [] ∧ Star(s) []
+proof
+  intro r
+  intro s
+  split THENL [
+    lemma star_nil [Plus(r; s)] THEN hyp,
+    split THENL [
+      lemma star_nil [r] THEN hyp,
+      lemma star_nil [s] THEN hyp
+    ]
+  ]
+qed

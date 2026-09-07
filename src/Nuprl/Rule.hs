@@ -189,12 +189,13 @@ headForm :: Term -> Term
 headForm = whnf . unfoldSoft
 
 -- | Computational type equality, including conversion inside equality and
--- comparison formers.
+-- comparison formers. Lazy WHNF is not enough for families: @P (Fst(<u,v>))@
+-- must convert with @P u@.
 typesEq :: Term -> Term -> Bool
 typesEq a b =
   let a' = headForm a
       b' = headForm b
-   in alphaEq a' b' || convType a' b'
+   in alphaEq a' b' || convType a' b' || computeEq a' b'
 
 convType :: Term -> Term -> Bool
 convType a b = case (a, b) of
@@ -211,6 +212,18 @@ convType a b = case (a, b) of
   (TQuotient a1 x1 y1 e1, TQuotient a2 x2 y2 e2) ->
     typesEq a1 a2
       && typesEq (substRel x1 y1 e1 (TVar x2) (TVar y2)) e2
+  (TFunction a1 x1 b1, TFunction a2 x2 b2) ->
+    typesEq a1 a2
+      && typesEq
+        (if isDummyVar x1 then b1 else subst1 x1 (TVar x2) b1)
+        b2
+  (TProduct a1 x1 b1, TProduct a2 x2 b2) ->
+    typesEq a1 a2
+      && typesEq
+        (if isDummyVar x1 then b1 else subst1 x1 (TVar x2) b1)
+        b2
+  (TUnion a1 b1, TUnion a2 b2) -> typesEq a1 a2 && typesEq b1 b2
+  (TApply f1 x1, TApply f2 x2) -> typesEq f1 f2 && computeEq x1 x2
   _ -> False
 
 -- | Instantiate a two-variable relation @E[x,y]@ at @t@ and @s@.
@@ -239,6 +252,11 @@ ruleHyp i sq = do
           c = seqConcl sq
           c' = headForm c
           ty' = headForm ty
+          -- Hidden hypotheses may only inhabit squash-stable conclusions, and
+          -- those extracts are proof-irrelevant (NuPRL §9.12).
+          extractOf
+            | hHidden h = TAxiom
+            | otherwise = TVar x
           success extract =
             Right
               RuleResult
@@ -249,7 +267,7 @@ ruleHyp i sq = do
        in case c' of
             -- The conclusion is the hypothesis type: inhabit it with x.
             _
-              | typesEq c ty -> success (TVar x)
+              | typesEq c ty -> success extractOf
             -- Membership / reflexivity at the declared type.
             TEqual t a b
               | typesEq t ty
@@ -870,8 +888,7 @@ ruleElim i arg sq = do
       failRule "elim" "intersection elimination requires a witness: elim i with t"
     (TQuotient a y z e, _) -> elimQuotient sq i x a y z e
     (TLt lo hi, _) -> elimLt sq lo hi True
-    (TSquash _, _) ->
-      failRule "elim" "squash elimination is not extractable; use a squash-stable goal"
+    (TSquash a, _) -> elimSquash sq i x a
     _ -> failRule "elim" "no elimination rule for this hypothesis"
 
 elimVoid :: Sequent -> Var -> Either RefineError RuleResult
@@ -888,9 +905,14 @@ elimFun sq _i f a y b t =
   let b' = if isDummyVar y then b else subst1 y t b
       used = declaredVars sq
       z = freshVar used (Var "y")
+      -- Remember the application: occurrences of @f t@ in the conclusion
+      -- become the new hypothesis, so a later pair-elim can substitute
+      -- through @Fst(f t)@ (constructive AC).
+      app = TApply (TVar f) t
       subMain =
         sq
           { seqHyps = seqHyps sq ++ [visibleHyp z b']
+          , seqConcl = replaceConv app (TVar z) (seqConcl sq)
           }
    in Right
         RuleResult
@@ -900,8 +922,8 @@ elimFun sq _i f a y b t =
               , LabeledGoal "main" subMain
               ]
           , rrExtract = \case
-              (_ : e : _) -> subst1 z (TApply (TVar f) t) e
-              _ -> TApply (TVar f) t
+              (_ : e : _) -> subst1 z app e
+              _ -> app
           }
 
 elimFunBackchain :: Sequent -> Int -> Var -> Term -> Term -> Either RefineError RuleResult
@@ -924,9 +946,13 @@ elimProd sq _i p a y b =
       u = freshVar used (Var "u")
       v = freshVar used (Var "v")
       b' = if isDummyVar y then b else subst1 y (TVar u) b
+      pair = TPair (TVar u) (TVar v)
+      -- Dependent Σ-elim: the motive is evaluated at @<u,v>@, matching
+      -- list/integer induction (which substitute the inducted term).
       sub =
         sq
           { seqHyps = seqHyps sq ++ [visibleHyp u a, visibleHyp v b']
+          , seqConcl = subst1 p pair (seqConcl sq)
           }
    in Right
         RuleResult
@@ -942,8 +968,16 @@ elimUnion sq _i d a b =
   let used = declaredVars sq
       u = freshVar used (Var "u")
       v = freshVar used (Var "v")
-      left = sq {seqHyps = seqHyps sq ++ [visibleHyp u a]}
-      right = sq {seqHyps = seqHyps sq ++ [visibleHyp v b]}
+      left =
+        sq
+          { seqHyps = seqHyps sq ++ [visibleHyp u a]
+          , seqConcl = subst1 d (TInl (TVar u)) (seqConcl sq)
+          }
+      right =
+        sq
+          { seqHyps = seqHyps sq ++ [visibleHyp v b]
+          , seqConcl = subst1 d (TInr (TVar v)) (seqConcl sq)
+          }
    in Right
         RuleResult
           { rrName = "elim"
@@ -952,6 +986,23 @@ elimUnion sq _i d a b =
               (e1 : e2 : _) -> TDecide (TVar d) u e1 v e2
               _ -> TDecide (TVar d) u TAxiom v TAxiom
           }
+
+-- | Squash elimination (NuPRL §9.12): if the conclusion is squash-stable,
+-- unhide @A@ as a hidden hypothesis. The extract is @Ax@ (proof-irrelevant).
+elimSquash :: Sequent -> Int -> Var -> Term -> Either RefineError RuleResult
+elimSquash sq _i _s a =
+  if not (squashStable (headForm (seqConcl sq)))
+    then failRule "elim" "squash elimination requires a squash-stable conclusion"
+    else
+      let used = declaredVars sq
+          u = freshVar used (Var "u")
+          sub = sq {seqHyps = seqHyps sq ++ [hiddenHyp u a]}
+       in Right
+            RuleResult
+              { rrName = "elim"
+              , rrSubgoals = [LabeledGoal "main" sub]
+              , rrExtract = const TAxiom
+              }
 
 elimEqual :: Sequent -> Int -> Var -> Term -> Term -> Term -> Either RefineError RuleResult
 elimEqual sq _i d t a b
@@ -1000,19 +1051,22 @@ elimEqual sq _i d t a b
                       [] -> TAxiom
                   }
   where
-    substTermHead src dst = go
-      where
-        go tm
-          | computeEq tm src = dst
-          | otherwise =
-              -- Reduce first so @f ((λx. t) a)@ is rewritten using an
-              -- equality about @t[a/x]@.
-              let tm' = whnf tm
-               in if computeEq tm' src
-                    then dst
-                    else case tm' of
-                      TVar _ -> tm'
-                      TOp op bts -> TOp op (map (\(BoundTerm vs body) -> BoundTerm vs (go body)) bts)
+    substTermHead = replaceConv
+
+-- | Replace convertibly-equal occurrences of @src@ with @dst@, reducing
+-- redexes so @f ((λx. t) a)@ matches an equality about @t[a/x]@.
+replaceConv :: Term -> Term -> Term -> Term
+replaceConv src dst = go
+  where
+    go tm
+      | computeEq tm src = dst
+      | otherwise =
+          let tm' = whnf tm
+           in if computeEq tm' src
+                then dst
+                else case tm' of
+                  TVar _ -> tm'
+                  TOp op bts -> TOp op (map (\(BoundTerm vs body) -> BoundTerm vs (go body)) bts)
 
 -- | Distinct canonical constructors: an equality between them is empty.
 canonicalClash :: Term -> Term -> Bool

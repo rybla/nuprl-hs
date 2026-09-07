@@ -82,6 +82,51 @@ exampleMetas =
       "Quotients"
       "Quotient types (x,y):A // E. Integers mod 2; successor respects ≡, max does not."
       (Just "Constable et al. §10.3")
+  , ExampleMeta
+      "choice"
+      "Axiom of choice"
+      "Type-theoretic AC is a theorem: a total relation yields a choice function."
+      Nothing
+  , ExampleMeta
+      "cps"
+      "CPS / double negation"
+      "Continuations as ¬¬; Kolmogorov translation; irrefutability of excluded middle."
+      Nothing
+  , ExampleMeta
+      "existence"
+      "Weak vs. strong existence"
+      "Σ vs. squash vs. ¬¬∃; the witness is in the extract only for strong existence."
+      Nothing
+  , ExampleMeta
+      "nd"
+      "Natural deduction"
+      "Depth-indexed propositional formulas and soundness of the ND combinators."
+      Nothing
+  , ExampleMeta
+      "listprog"
+      "Lists as programs"
+      "Head, tail, membership, non-repetition, fold, and append — Constable et al. §11.2."
+      (Just "Constable et al. §11.2")
+  , ExampleMeta
+      "combinatory"
+      "Combinatory logic"
+      "SKI combinators and Church numerals, booleans, and pairs."
+      Nothing
+  , ExampleMeta
+      "hoare"
+      "Hoare logic"
+      "Partial-correctness triples over the stream-of-states model of §11.6."
+      (Just "Constable et al. §11.6")
+  , ExampleMeta
+      "regular"
+      "Regular sets"
+      "Union, concatenation, and star as predicates on words; Kleene identities."
+      (Just "Constable et al. §11.4")
+  , ExampleMeta
+      "euclid"
+      "Euclidean algorithm"
+      "Iterated remainder computes gcd on closed integers, with divisibility proofs."
+      Nothing
   ]
 
 lookupMeta :: Text -> Maybe ExampleMeta

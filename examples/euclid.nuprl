@@ -1,0 +1,195 @@
+-- | Verified Euclidean algorithm.
+--
+-- `GcdStep` is one remainder step `<a, b> ↦ <b, a % b>` (or the identity
+-- when `b = 0`). `Euclid(a; b)` iterates that step a fixed number of times
+-- (8 is enough for every closed instance below) and returns the first
+-- component. Closed instances compute, and the results are shown to be
+-- common divisors (the specification of gcd on those inputs).
+--
+-- Open identities such as `n % m < m` are not discharged by closed
+-- arithmetic, so the general `∀n m. …` theorem is not claimed; the extract
+-- of the algorithm is the iterated remainder term itself.
+theory Euclid
+
+abs Fst(p) == let <u, v> = p in u
+abs Snd(p) == let <u, v> = p in v
+abs GcdStep(p) ==
+  let <a, b> = p in
+    int_eq b 0 p <b, a % b>
+abs Euclid(a; b) ==
+  Fst(ind(8; x,ih. <a, b>; <a, b>; k,r. GcdStep(r)))
+abs Divides(d; n) == ∃k:Int. n = d * k ∈ Int
+
+soft Fst, Snd, GcdStep, Euclid, Divides
+
+--------------------------------------------------------------------------------
+-- Remainder steps (closed)
+--------------------------------------------------------------------------------
+
+theorem rem_48_18 :
+  48 % 18 = 12 ∈ Int
+proof
+  eq
+qed
+
+theorem rem_18_12 :
+  18 % 12 = 6 ∈ Int
+proof
+  eq
+qed
+
+theorem rem_12_6 :
+  12 % 6 = 0 ∈ Int
+proof
+  eq
+qed
+
+theorem gcdstep_48_18 :
+  GcdStep(<48, 18>) = <18, 12> ∈ Int × Int
+proof
+  eq THEN auto
+qed
+
+theorem gcdstep_18_12 :
+  GcdStep(<18, 12>) = <12, 6> ∈ Int × Int
+proof
+  eq THEN auto
+qed
+
+theorem gcdstep_12_6 :
+  GcdStep(<12, 6>) = <6, 0> ∈ Int × Int
+proof
+  eq THEN auto
+qed
+
+theorem gcdstep_6_0 :
+  GcdStep(<6, 0>) = <6, 0> ∈ Int × Int
+proof
+  eq THEN auto
+qed
+
+--------------------------------------------------------------------------------
+-- The algorithm on closed inputs
+--------------------------------------------------------------------------------
+
+theorem euclid_48_18 :
+  Euclid(48; 18) = 6 ∈ Int
+proof
+  eq
+qed
+
+theorem euclid_18_48 :
+  Euclid(18; 48) = 6 ∈ Int
+proof
+  eq
+qed
+
+theorem euclid_7_0 :
+  Euclid(7; 0) = 7 ∈ Int
+proof
+  eq
+qed
+
+theorem euclid_0_7 :
+  Euclid(0; 7) = 7 ∈ Int
+proof
+  eq
+qed
+
+theorem euclid_1_1 :
+  Euclid(1; 1) = 1 ∈ Int
+proof
+  eq
+qed
+
+theorem euclid_17_5 :
+  Euclid(17; 5) = 1 ∈ Int
+proof
+  eq
+qed
+
+theorem euclid_1071_462 :
+  Euclid(1071; 462) = 21 ∈ Int
+proof
+  eq
+qed
+
+--------------------------------------------------------------------------------
+-- Divisibility of the result
+--------------------------------------------------------------------------------
+
+theorem divides_6_48 :
+  Divides(6; 48)
+proof
+  exists 8 THENL [eq, eq]
+qed
+
+theorem divides_6_18 :
+  Divides(6; 18)
+proof
+  exists 3 THENL [eq, eq]
+qed
+
+theorem euclid_48_18_divides_a :
+  Divides(Euclid(48; 18); 48)
+proof
+  exists 8 THENL [eq, eq]
+qed
+
+theorem euclid_48_18_divides_b :
+  Divides(Euclid(48; 18); 18)
+proof
+  exists 3 THENL [eq, eq]
+qed
+
+theorem euclid_17_5_divides_a :
+  Divides(Euclid(17; 5); 17)
+proof
+  exists 17 THENL [eq, eq]
+qed
+
+theorem euclid_17_5_divides_b :
+  Divides(Euclid(17; 5); 5)
+proof
+  exists 5 THENL [eq, eq]
+qed
+
+theorem euclid_1071_462_divides :
+  Divides(Euclid(1071; 462); 1071) ∧ Divides(Euclid(1071; 462); 462)
+proof
+  split THENL [
+    exists 51 THENL [eq, eq],
+    exists 22 THENL [eq, eq]
+  ]
+qed
+
+-- 6 is a common divisor of 48 and 18, and every smaller positive common
+-- divisor in {1,2,3} divides 6 — the “greatest” part, on this instance.
+theorem gcd_48_18_greatest_small :
+  Divides(1; 6) ∧ Divides(2; 6) ∧ Divides(3; 6)
+proof
+  split THENL [
+    exists 6 THENL [eq, eq],
+    split THENL [
+      exists 3 THENL [eq, eq],
+      exists 2 THENL [eq, eq]
+    ]
+  ]
+qed
+
+--------------------------------------------------------------------------------
+-- Coprimality as gcd = 1
+--------------------------------------------------------------------------------
+
+theorem coprime_17_5 :
+  Euclid(17; 5) = 1 ∈ Int
+proof
+  lemma euclid_17_5 THEN hyp
+qed
+
+theorem not_coprime_48_18 :
+  ¬(Euclid(48; 18) = 1 ∈ Int)
+proof
+  intro p
+  elim 1
+qed

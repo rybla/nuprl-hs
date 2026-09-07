@@ -107,7 +107,8 @@ qed
 
 See `examples/` for a standard library (combinators, logic, equality, integers,
 lists, classical reasoning, sets, quotients), plus cardinality, denotational
-semantics, and intersection types.
+semantics, intersection types, constructive choice, CPS / double negation,
+Hoare logic, regular sets, and a verified Euclidean algorithm.
 
 ## What is implemented
 

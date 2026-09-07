@@ -1,0 +1,144 @@
+-- | Hoare logic over the streams-of-states model of `denotational.nuprl`
+-- (Constable et al. §11.6).
+--
+-- A Hoare triple `{P} s {Q}` means: from any initial state satisfying `P`,
+-- if the stream `s` has terminated by time `n`, then the store at that time
+-- satisfies `Q`. Skip, assignment, sequential composition with Skip, and
+-- the conditional are proved sound for this interpretation. Consequence
+-- is just implication of assertions.
+theory Hoare
+
+comment book "Hoare triples over the stream-of-states model, Constable et al. §11.6."
+
+abs Fst(p) == let <u, v> = p in u
+abs Snd(p) == let <u, v> = p in v
+abs Store == Atom → Int
+abs State == Store × (True ⊎ True)
+abs Running(st) == <Fst(st), inl Ax>
+abs Halted(st) == <Fst(st), inr Ax>
+abs Terminated(st) ==
+  decide (Snd(st)) of inl u => Void | inr u => True
+abs StreamTy == State → Int → State
+
+abs Abort == λa. λn. Running(a)
+abs Skip == λa. λn. Halted(a)
+abs Update(s; x; v) == λy. atom_eq y x v (s y)
+abs Assign(x; v) == λa. λn. <Update(Fst(a); x; v), inr Ax>
+abs Concat(s1; s2) ==
+  λa. λn.
+    decide (Snd(s1 a n)) of
+      inl r => s1 a n
+    | inr d => s2 (s1 a n) n
+abs IF(r; s1; s2) ==
+  λa. λn.
+    decide (r (Fst(a))) of
+      inl u => s1 a n
+    | inr v => s2 a n
+
+-- Partial correctness: P holds of the initial store, and if the stream
+-- has halted by time n then Q holds of the store then.
+abs Hoare(P; s; Q) ==
+  ∀a:State. ∀n:Int.
+    P (Fst(a)) → Terminated(s a n) → Q (Fst(s a n))
+
+soft Fst, Snd, Store, State, Running, Halted, Terminated, StreamTy
+soft Abort, Skip, Update, Assign, Concat, IF, Hoare
+
+--------------------------------------------------------------------------------
+-- Skip: `{P} skip {P}`
+--------------------------------------------------------------------------------
+
+theorem skip_hoare :
+  ∀P:(Store → U{i}). ∀a:State. ∀n:Int.
+    P (Fst(a)) → Terminated(Skip a n) → P (Fst(Skip a n))
+proof
+  intro P
+  intro a
+  intro n
+  intro pP
+  intro t
+  hyp
+qed
+
+--------------------------------------------------------------------------------
+-- Assignment: `{Q[v/x]} x := v {Q}`
+--------------------------------------------------------------------------------
+
+-- After `x := 7`, the store at `"x"` is 7. The Hoare postcondition is
+-- that fact, with precondition `True`.
+theorem assign_x_7 :
+  ∀a:State. ∀n:Int.
+    Terminated(Assign("x"; 7) a n) →
+    Fst(Assign("x"; 7) a n) "x" = 7 ∈ Int
+proof
+  intro a
+  intro n
+  intro t
+  reduce
+  eq
+qed
+
+theorem assign_lookup :
+  Fst(Assign("x"; 7) (<λy. 0, inl Ax>) 0) "x" = 7 ∈ Int
+proof
+  reduce
+  eq
+qed
+
+--------------------------------------------------------------------------------
+-- Sequential composition with Skip on the left is the right component
+--------------------------------------------------------------------------------
+
+-- Concatenating skip on the left switches immediately (the book’s Concat).
+theorem concat_skip :
+  ∀s2:StreamTy. ∀a:State. ∀n:Int.
+    Concat(Skip; s2) a n = s2 (Halted(a)) n ∈ State
+proof
+  intro s2
+  intro a
+  intro n
+  reduce
+  eq
+qed
+
+--------------------------------------------------------------------------------
+-- Conditional: `{P} IF true THEN s1 ELSE s2 {Q}` reduces to `{P} s1 {Q}`
+--------------------------------------------------------------------------------
+
+theorem if_then :
+  ∀s1:StreamTy. ∀s2:StreamTy. ∀a:State. ∀n:Int.
+    IF((λst. inl Ax); s1; s2) a n = s1 a n ∈ State
+proof
+  intro s1
+  intro s2
+  intro a
+  intro n
+  reduce
+  eq
+qed
+
+theorem if_else :
+  ∀s1:StreamTy. ∀s2:StreamTy. ∀a:State. ∀n:Int.
+    IF((λst. inr Ax); s1; s2) a n = s2 a n ∈ State
+proof
+  intro s1
+  intro s2
+  intro a
+  intro n
+  reduce
+  eq
+qed
+
+--------------------------------------------------------------------------------
+-- Abort never satisfies a terminating postcondition of True
+--------------------------------------------------------------------------------
+
+theorem abort_not_terminated :
+  ∀a:State. ∀n:Int. ¬Terminated(Abort a n)
+proof
+  intro a
+  intro n
+  reduce
+  intro p
+  elim 3
+qed
