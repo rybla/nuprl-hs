@@ -227,7 +227,7 @@ aboutSection =
       []
       ( txt "The " <> el "a" [("href", "https://nuprl-web.cs.cornell.edu/html/NuprlSystem.html")] (txt "original NuPRL system") <> txt " is an X11 structured editor driven from an ML top loop. This port keeps the "
           <> el "em" [] (txt "logic")
-          <> txt " — uniform terms, sequents, primitive refinement rules, extracts, soft encodings, universe levels — and replaces the window system with a file-based proof language and a command-line interface."
+          <> txt " — sequents, primitive refinement rules, extracts, soft encodings, universe levels — and replaces the window system with a file-based proof language and a command-line interface."
       )
     </> el
       "p"
@@ -243,9 +243,7 @@ featuresSection =
     </> el
       "dl"
       [("class", "feats")]
-      ( feat "Uniform terms"
-          "Every object-language expression is opid{params}(bound-terms), or a variable. Surface notation (λ, ∀, ∧, ∈, …) is display sugar."
-          <> feat "Refinement sequents"
+      ( feat "Refinement sequents"
           "Goals are H ⊢ C, with hidden hypotheses and %-invisible variables, matching NuPRL §9.12."
           <> feat "Primitive rules"
           "hyp, intro, elim, eq, compute, cut, lemma, thin, decide — the whole of a completed proof is a tree of these."
