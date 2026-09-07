@@ -221,7 +221,7 @@ orderExamples exs =
 
 aboutSection :: Html
 aboutSection =
-  el "h2" [("id", "about")] (txt "What is NuPRL")
+  el "h2" [("id", "about")] (txt "nuprl and nuprl-hs")
     </> el
       "p"
       []
