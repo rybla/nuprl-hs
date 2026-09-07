@@ -229,7 +229,11 @@ css =
     , ".node-extract { color: var(--extract); font-size: 0.9rem; margin: 0.2rem 0 0.4rem; padding-left: 0.5rem; border-left: 2px solid var(--extract); }"
     , ".node-extract .k { font-variant: small-caps; letter-spacing: 0.08em; font-size: 0.75rem; margin-right: 0.4rem; }"
     , ".subgoals { margin-top: 0.2rem; }"
-    , "pre.source { overflow: auto; font-family: var(--mono); font-size: 0.78rem; line-height: 1.5; background: var(--paper-raised); border: 1px solid var(--rule); padding: 0.9rem 1rem; }"
+    , "pre.source { overflow: auto; font-family: var(--mono); font-size: 0.78rem; line-height: 1.5; background: var(--paper-raised); border: 1px solid var(--rule); padding: 0.9rem 1rem; white-space: pre; }"
+    -- Inline `code` uses nowrap so phrases in running text stay on one line.
+    -- That rule also matches `<pre class="source"><code>`, collapsing the
+    -- original file's newlines and indentation; restore preformatted space.
+    , "pre.source code { white-space: pre; }"
     , "pre.source .ident { color: var(--ink); }"
     , "#tip {"
     , "  position: fixed;"

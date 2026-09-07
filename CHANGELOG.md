@@ -30,6 +30,8 @@ and this project adheres to the
 - `P` and `U` as variables are no longer stolen by `P{i}` / `U{i}` parsers.
 - `λ` is not an identifier character, so `n (λx. t)` is application.
 - `cut T as x` no longer parses `as` as an applied variable.
+- Example pages render the original `.nuprl` source as preformatted lines
+  instead of one collapsed run of text.
 
 ## 0.3.0.0
 
