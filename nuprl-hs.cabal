@@ -5,7 +5,7 @@ cabal-version: 2.2
 -- see: https://github.com/sol/hpack
 
 name:           nuprl-hs
-version:        0.3.0.0
+version:        0.4.0.0
 synopsis:       A modern Haskell implementation of the NuPRL proof development system
 description:    nuprl-hs is a modern, purely-functional implementation of the NuPRL
                 computational type theory (CTT) proof development system. It provides a
@@ -28,26 +28,48 @@ extra-source-files:
     docs/TACTICS.md
     docs/TYPE-THEORY.md
     examples/cardinality.nuprl
+    examples/choice.nuprl
     examples/classical.nuprl
+    examples/combinatory.nuprl
     examples/core.nuprl
+    examples/cps.nuprl
     examples/denotational.nuprl
     examples/equality.nuprl
+    examples/euclid.nuprl
+    examples/existence.nuprl
     examples/functions.nuprl
+    examples/hoare.nuprl
     examples/integers.nuprl
     examples/intersection.nuprl
+    examples/listprog.nuprl
     examples/lists.nuprl
     examples/logic.nuprl
+    examples/nd.nuprl
+    examples/quotients.nuprl
+    examples/regular.nuprl
+    examples/sets.nuprl
 data-files:
     examples/cardinality.nuprl
+    examples/choice.nuprl
     examples/classical.nuprl
+    examples/combinatory.nuprl
     examples/core.nuprl
+    examples/cps.nuprl
     examples/denotational.nuprl
     examples/equality.nuprl
+    examples/euclid.nuprl
+    examples/existence.nuprl
     examples/functions.nuprl
+    examples/hoare.nuprl
     examples/integers.nuprl
     examples/intersection.nuprl
+    examples/listprog.nuprl
     examples/lists.nuprl
     examples/logic.nuprl
+    examples/nd.nuprl
+    examples/quotients.nuprl
+    examples/regular.nuprl
+    examples/sets.nuprl
 
 source-repository head
   type: git

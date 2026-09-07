@@ -53,7 +53,7 @@ siteFooter =
   el
     "footer"
     [("class", "site")]
-    ( txt "nuprl-hs · a modern Haskell NuPRL · "
+    ( txt "nuprl-hs · "
         <> el "a" [("href", "https://github.com/rybla/nuprl-hs")] (txt "source")
     )
 
@@ -80,7 +80,7 @@ indexPage exs =
   page
     ""
     "nuprl-hs — a modern NuPRL in Haskell"
-    "A modern Haskell implementation of the NuPRL computational type theory proof development system, with annotated example theories."
+    "A Haskell implementation of the NuPRL computational type theory proof development system, with annotated example theories."
     ( siteHeader ""
         </> el
           "main"
@@ -553,7 +553,7 @@ sourcePanel ax =
       <> el
         "details"
         [("class", "panel")]
-        ( el "summary" [] (txt "Original .nuprl file")
+        ( el "summary" [] (txt "Original source file")
             <> renderSourceH (axSource ax)
         )
 

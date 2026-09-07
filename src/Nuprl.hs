@@ -1,4 +1,4 @@
--- | A modern Haskell implementation of the NuPRL proof development system.
+-- | A Haskell implementation of the NuPRL proof development system.
 --
 -- nuprl-hs implements computational type theory (CTT) as a refinement theorem
 -- prover. The kernel ('Nuprl.Rule') is a pure function from sequents to
