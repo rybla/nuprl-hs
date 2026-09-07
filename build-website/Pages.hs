@@ -225,7 +225,7 @@ aboutSection =
     </> el
       "p"
       []
-      ( txt "The original NuPRL 4.2 system (Jackson, 1995) is an X11 structured editor driven from an ML top loop. This port keeps the "
+      ( txt "The " <> el "a" [("href", "https://nuprl-web.cs.cornell.edu/html/NuprlSystem.html")] (txt "original NuPRL system") <> txt " is an X11 structured editor driven from an ML top loop. This port keeps the "
           <> el "em" [] (txt "logic")
           <> txt " — uniform terms, sequents, primitive refinement rules, extracts, soft encodings, universe levels — and replaces the window system with a file-based proof language and a command-line interface."
       )
