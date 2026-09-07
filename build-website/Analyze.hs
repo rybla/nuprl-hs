@@ -36,6 +36,7 @@ import Nuprl.Library
 import Nuprl.Parse (parseTheoryAt)
 import Nuprl.Pretty (renderTerm)
 import Nuprl.Proof
+import Nuprl.Subst (alphaEq, occursFree)
 import Nuprl.Tactic (IntroArgExpr (..), TacticExpr (..), prettyTacticExpr)
 import Nuprl.Term
 
@@ -370,6 +371,7 @@ data Kind
   | KGoal
   | KComment
   | KKeyword
+  | KPunct
   deriving stock (Eq, Show)
 
 kindClass :: Kind -> Text
@@ -387,6 +389,7 @@ kindClass = \case
   KGoal -> "sem-goal"
   KComment -> "sem-comment"
   KKeyword -> "sem-keyword"
+  KPunct -> "sem-punct"
 
 kindLabel :: Kind -> Text
 kindLabel = \case
@@ -403,6 +406,7 @@ kindLabel = \case
   KGoal -> "goal"
   KComment -> "comment"
   KKeyword -> "keyword"
+  KPunct -> "punctuation"
 
 termKind :: Library -> Term -> Kind
 termKind lib t
@@ -462,76 +466,145 @@ explainTerm lib t = case t of
   TNat n -> "Integer numeral " <> T.pack (show n) <> "."
   TToken s -> "Token " <> T.pack (show s) <> " ∈ Atom."
   TNil -> "The empty list."
-  TLambda x _ ->
-    "A λ-abstraction binding " <> varText x <> ". Canonical inhabitant of a function type (Π)."
-  TAll a x _ ->
+  TLambda x b ->
+    "A λ-abstraction binding "
+      <> varText x
+      <> " in "
+      <> renderTerm b
+      <> ". Canonical inhabitant of a function type (Π)."
+  TAll a x b ->
     "Universal quantifier ∀"
       <> varText x
       <> ":"
       <> renderTerm a
+      <> ". "
+      <> renderTerm b
       <> ". Soft encoding of the dependent function type."
-  TExists a x _ ->
+  TExists a x b ->
     "Existential quantifier ∃"
       <> varText x
       <> ":"
       <> renderTerm a
+      <> ". "
+      <> renderTerm b
       <> ". Soft encoding of the dependent pair type (Σ)."
-  TNot _ -> "Negation ¬A, the soft encoding of A → Void."
-  TImplies _ _ -> "Implication A ⇒ B, the soft encoding of the function type A → B."
-  TOr _ _ -> "Disjunction A ∨ B, the soft encoding of the disjoint union A ⊎ B."
-  TAnd _ _ -> "Conjunction A ∧ B, the soft encoding of the product A × B."
-  TIff _ _ -> "Biconditional A ⇔ B, i.e. (A → B) × (B → A)."
+  TNot a -> "Negation ¬(" <> renderTerm a <> "), the soft encoding of A → Void."
+  TImplies a b ->
+    "Implication "
+      <> renderTerm a
+      <> " ⇒ "
+      <> renderTerm b
+      <> ", the soft encoding of the function type A → B."
+  TOr a b ->
+    "Disjunction "
+      <> renderTerm a
+      <> " ∨ "
+      <> renderTerm b
+      <> ", the soft encoding of the disjoint union A ⊎ B."
+  TAnd a b ->
+    "Conjunction "
+      <> renderTerm a
+      <> " ∧ "
+      <> renderTerm b
+      <> ", the soft encoding of the product A × B."
+  TIff a b ->
+    "Biconditional "
+      <> renderTerm a
+      <> " ⇔ "
+      <> renderTerm b
+      <> ", i.e. (A → B) × (B → A)."
   TLt a b -> "Integer comparison " <> renderTerm a <> " < " <> renderTerm b <> ". Inhabited (by Ax) when the relation holds."
-  TFunction a x _
-    | isDummyVar x -> "Function type " <> renderTerm a <> " → B."
-    | otherwise -> "Dependent function type (Π): (" <> varText x <> ":" <> renderTerm a <> ") → B."
-  TProduct a x _
-    | isDummyVar x -> "Product type " <> renderTerm a <> " × B."
-    | otherwise -> "Dependent pair type (Σ): (" <> varText x <> ":" <> renderTerm a <> ") × B."
-  TUnion _ _ -> "Disjoint union A ⊎ B. Canonical inhabitants: inl / inr."
+  TFunction a x b
+    | isDummyVar x || not (occursFree x b) ->
+        "Function type " <> renderTerm a <> " → " <> renderTerm b <> "."
+    | otherwise ->
+        "Dependent function type (Π): (" <> varText x <> ":" <> renderTerm a <> ") → " <> renderTerm b <> "."
+  TProduct a x b
+    | isDummyVar x || not (occursFree x b) ->
+        "Product type " <> renderTerm a <> " × " <> renderTerm b <> "."
+    | otherwise ->
+        "Dependent pair type (Σ): (" <> varText x <> ":" <> renderTerm a <> ") × " <> renderTerm b <> "."
+  TUnion a b ->
+    "Disjoint union "
+      <> renderTerm a
+      <> " ⊎ "
+      <> renderTerm b
+      <> ". Canonical inhabitants: inl / inr."
   TEqual ty a b
-    | a == b -> "Membership " <> renderTerm a <> " ∈ " <> renderTerm ty <> "."
+    | alphaEq a b -> "Membership " <> renderTerm a <> " ∈ " <> renderTerm ty <> "."
     | otherwise -> "Equality " <> renderTerm a <> " = " <> renderTerm b <> " ∈ " <> renderTerm ty <> ". Inhabited by Ax when true."
   TMember tm ty -> "Membership " <> renderTerm tm <> " ∈ " <> renderTerm ty <> ", i.e. " <> renderTerm tm <> " = " <> renderTerm tm <> " ∈ " <> renderTerm ty <> "."
-  TAdd {} -> "Integer addition."
-  TSub {} -> "Integer subtraction."
-  TMul {} -> "Integer multiplication."
-  TDiv {} -> "Integer division."
-  TRem {} -> "Integer remainder."
-  TMinus {} -> "Integer negation."
-  TCons {} -> "List cons."
-  TPair {} -> "A pair. Canonical inhabitant of a product / Σ / conjunction."
-  TInl {} -> "Left injection of a disjoint union (or ∨)."
-  TInr {} -> "Right injection of a disjoint union (or ∨)."
+  TAdd a b -> "Integer addition " <> renderTerm a <> " + " <> renderTerm b <> "."
+  TSub a b -> "Integer subtraction " <> renderTerm a <> " − " <> renderTerm b <> "."
+  TMul a b -> "Integer multiplication " <> renderTerm a <> " · " <> renderTerm b <> "."
+  TDiv a b -> "Integer division " <> renderTerm a <> " / " <> renderTerm b <> "."
+  TRem a b -> "Integer remainder " <> renderTerm a <> " % " <> renderTerm b <> "."
+  TMinus a -> "Integer negation −(" <> renderTerm a <> ")."
+  TCons h tl -> "List cons " <> renderTerm h <> " :: " <> renderTerm tl <> "."
+  TPair a b ->
+    "A pair 〈"
+      <> renderTerm a
+      <> ", "
+      <> renderTerm b
+      <> "〉. Canonical inhabitant of a product / Σ / conjunction."
+  TInl a -> "Left injection inl (" <> renderTerm a <> ") of a disjoint union (or ∨)."
+  TInr a -> "Right injection inr (" <> renderTerm a <> ") of a disjoint union (or ∨)."
   TApply f a -> "Application: (" <> renderTerm f <> ") (" <> renderTerm a <> "). Reduces by β when the function is a λ."
-  TSpread {} -> "Spread (let 〈x, y〉 = p in …): eliminates a pair."
-  TDecide {} -> "Case analysis on a disjoint union (decide)."
-  TList _ -> "The type of lists."
-  TSet a x _ -> "Set type {" <> varText x <> ":" <> renderTerm a <> " | P}. Inhabitants are elements of A that satisfy P."
-  TIsect a x _
-    | isDummyVar x ->
-        "Independent intersection A ∩ B, i.e. isect(A; _.B). A common realizer of B for every index of type A."
+  TSpread p x y body ->
+    "Spread (let 〈"
+      <> varText x
+      <> ", "
+      <> varText y
+      <> "〉 = "
+      <> renderTerm p
+      <> " in "
+      <> renderTerm body
+      <> "): eliminates a pair."
+  TDecide d _ _ _ _ -> "Case analysis decide " <> renderTerm d <> " of a disjoint union."
+  TList a -> "The type of lists of " <> renderTerm a <> "."
+  TSet a x p ->
+    "Set type {"
+      <> varText x
+      <> ":"
+      <> renderTerm a
+      <> " | "
+      <> renderTerm p
+      <> "}. Inhabitants are elements of A that satisfy P."
+  TIsect a x b
+    | isDummyVar x || not (occursFree x b) ->
+        "Independent intersection "
+          <> renderTerm a
+          <> " ∩ "
+          <> renderTerm b
+          <> ", i.e. isect(A; _.B). A common realizer of B for every index of type A."
     | otherwise ->
         "Intersection type ⋂"
           <> varText x
           <> ":"
           <> renderTerm a
-          <> ". B. A common realizer of every B[a]; the index is not computational."
-  TQuotient a x y _ ->
+          <> ". "
+          <> renderTerm b
+          <> ". A common realizer of every B[a]; the index is not computational."
+  TQuotient a x y e ->
     "Quotient type ("
       <> varText x
       <> ","
       <> varText y
       <> "):"
       <> renderTerm a
-      <> " // E. Members of A, with equality given by E."
-  TSquash _ -> "Squash [A]: A with computational content hidden. Inhabited by Ax when A is inhabited."
-  TAny {} -> "any t T: a term of type T from a proof of Void (ex falso)."
-  TIntEq {} -> "int_eq: boolean case split on integer equality."
-  TLess {} -> "less: boolean case split on integer comparison."
-  TAtomEq {} -> "atom_eq: boolean case split on token equality."
-  TListInd {} -> "List induction."
-  TInd {} -> "Integer induction ind(n; down; base; up)."
+      <> " // "
+      <> renderTerm e
+      <> ". Members of A, with equality given by E."
+  TSquash a ->
+    "Squash ["
+      <> renderTerm a
+      <> "]: A with computational content hidden. Inhabited by Ax when A is inhabited."
+  TAny v tyT -> "any " <> renderTerm v <> " " <> renderTerm tyT <> ": a term of type T from a proof of Void (ex falso)."
+  TIntEq a b _ _ -> "int_eq: boolean case split on whether " <> renderTerm a <> " = " <> renderTerm b <> "."
+  TLess a b _ _ -> "less: boolean case split on whether " <> renderTerm a <> " < " <> renderTerm b <> "."
+  TAtomEq a b _ _ -> "atom_eq: boolean case split on whether " <> renderTerm a <> " = " <> renderTerm b <> " as tokens."
+  TListInd lst _ _ _ _ _ -> "List induction on " <> renderTerm lst <> "."
+  TInd n _ _ _ _ _ _ _ -> "Integer induction ind on " <> renderTerm n <> "."
   TVar (Var n) ->
     case lookupAbs lib n of
       Just a -> absNote a

@@ -32,6 +32,8 @@ and this project adheres to the
 - `cut T as x` no longer parses `as` as an applied variable.
 - Example pages render the original `.nuprl` source as preformatted lines
   instead of one collapsed run of text.
+- Hovering pretty-printed syntax inspects the innermost glyph (connective,
+  binder, subterm, punctuation), not only the enclosing quantifier.
 
 ## 0.3.0.0
 

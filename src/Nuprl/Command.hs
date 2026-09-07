@@ -334,7 +334,7 @@ statusLine sess =
 helpText :: Text
 helpText =
   T.unlines
-    [ "nuprl-hs — a modern NuPRL computational type theory prover"
+    [ "nuprl-hs — a NuPRL computational type theory prover"
     , ""
     , "Top-level commands:"
     , "  help [topic]       this help, or a topic (tactics, terms, rules, examples)"

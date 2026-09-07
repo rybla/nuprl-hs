@@ -30,6 +30,7 @@
   --num: #6b5420;
   --complete: #2f5d3a;
   --danger: #7a2c3a;
+  --hit: rgba(107, 84, 32, 0.16);
   --serif: "Iowan Old Style", Palatino, "Palatino Linotype", "Book Antiqua", Georgia, "Times New Roman", serif;
   --sans: "Source Sans 3", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --mono: "Iosevka", "Source Code Pro", "IBM Plex Mono", Menlo, Consolas, monospace;
@@ -56,6 +57,7 @@
     --num: #d4b56a;
     --complete: #8fbf98;
     --danger: #d98996;
+    --hit: rgba(212, 181, 106, 0.22);
   }
 }
 * { box-sizing: border-box; }
@@ -136,8 +138,16 @@ footer.site { border-top: 1px solid var(--rule); padding: 1.4rem; color: var(--i
 .sem-comment { color: var(--comment); font-style: italic; }
 .sem-keyword { color: var(--keyword); font-variant: small-caps; letter-spacing: 0.08em; }
 .tm, .tac, .script, .sequent, .pnode-concl { font-family: var(--serif); }
-.tm { cursor: help; word-spacing: 0.04em; }
+[data-kind] { cursor: help; }
+.tm { word-spacing: 0.04em; }
 .sem-conn { padding: 0 0.1em; }
+.sem-punct { color: inherit; }
+.syntax-hit {
+  background: var(--hit);
+  border-radius: 2px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
 .tac { cursor: help; }
 .rule { cursor: help; font-variant: small-caps; letter-spacing: 0.06em; }
 .ex-index { list-style: none; padding: 0; margin: 0 0 2rem; }

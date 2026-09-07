@@ -79,7 +79,7 @@ indexPage :: [AnnotatedExample] -> Html
 indexPage exs =
   page
     ""
-    "nuprl-hs — a modern NuPRL in Haskell"
+    "nuprl-hs — a modern implementation of NuPRL in Haskell"
     "A Haskell implementation of the NuPRL computational type theory proof development system, with annotated example theories."
     ( siteHeader ""
         </> el
@@ -105,7 +105,7 @@ hero =
     </> el
       "p"
       [("class", "lede")]
-      ( txt "A modern, purely functional implementation of "
+      ( txt "A modern implementation of "
           <> el "em" [] (txt "NuPRL")
           <> txt ": computational type theory as a refinement theorem prover, with a tactic language, theory library, and a command-line interface."
       )
@@ -158,7 +158,7 @@ examplesIndexPage exs =
                     [("class", "lede")]
                     ( txt "Checked theories from "
                         <> el "code" [] (txt "examples/")
-                        <> txt ", rendered as interactive documents. Statements and extracts are shown first; hover a term for its uniform syntax, unfolding, and weak-head normal form; open a panel for the tactic script, the refinement tree, and the analyses the CLI would print ("
+                        <> txt ", rendered as interactive documents. Statements and extracts are shown first; hover any connective, binder, or subterm for that piece of surface syntax and its uniform form; open a panel for the tactic script, the refinement tree, and the analyses the CLI would print ("
                         <> el "code" [] (txt "check")
                         <> txt ", "
                         <> el "code" [] (txt "extract")
@@ -341,7 +341,7 @@ exampleHero ax meta =
       ( txt (T.pack (show (countTheorems ax)))
           <> txt " theorems, "
           <> txt (T.pack (show (countAbs ax)))
-          <> txt " abstractions, checked by replaying their tactic scripts on the kernel. Hover any coloured phrase; open Tactics, Proof, or Analysis to go deeper."
+          <> txt " abstractions, checked by replaying their tactic scripts on the kernel. Hover any piece of syntax for its kind, surface form, and uniform term; open Tactics, Proof, or Analysis to go deeper."
       )
   where
     para t = el "p" [] (txt t)
@@ -408,7 +408,16 @@ absCard lib a =
    in el "article" [("class", "card"), ("id", name), ("data-name", name)] $
         el "div" [("class", "kind abs")] (txt (if absSoft a then "soft abstraction" else "abstraction"))
           <> el "h3" [("class", "obj-name")] sig
-          <> el "div" [("class", "statement")] (conn "≡" <> raw " " <> renderTermH lib (absRhs a))
+          <> el
+            "div"
+            [("class", "statement")]
+            ( tok
+                KConn
+                "≡"
+                "Definitional equality of an abstraction: the right-hand side is the unfolding used by the kernel."
+                <> raw " "
+                <> renderTermH lib (absRhs a)
+            )
           <> el
             "details"
             [("class", "panel")]
@@ -431,10 +440,8 @@ absCard lib a =
           body = btBody bt
        in ( if null vs
               then renderTermH lib body
-              else mconcat (punctuate (raw ", ") (map binderish vs)) <> raw ". " <> renderTermH lib body
+              else mconcat (punctuate (raw ", ") (map binder vs)) <> raw ". " <> renderTermH lib body
           )
-    binderish v = el "span" [("class", "sem-binder")] (txt (varText v))
-    conn s = el "span" [("class", "sem-conn")] (txt s)
     punctuate _ [] = []
     punctuate _ [x] = [x]
     punctuate s (x : xs) = x : s : punctuate s xs

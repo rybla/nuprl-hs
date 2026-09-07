@@ -1,6 +1,8 @@
 -- | HTML rendering of terms, sequents, tactics, proofs, and source. Every
--- interesting node carries precomputed CLI analyses (pretty, uniform, WHNF,
--- unfold) as data attributes for the hover inspector.
+-- surface-syntax piece (subterm, connective, binder, constructor, punctuation)
+-- carries a hover payload so the inspector can pinpoint the glyph under the
+-- pointer. Compound terms also wrap the whole phrase, so a gap between tokens
+-- still describes that form.
 module Render
   ( renderTermH
   , renderSequentH
@@ -9,6 +11,8 @@ module Render
   , renderProofH
   , renderSourceH
   , termAttrs
+  , binder
+  , tok
   ) where
 
 import Data.Char (isAlphaNum, isDigit)
@@ -33,12 +37,11 @@ import Nuprl.Term
 renderTermH :: Library -> Term -> Html
 renderTermH lib = annTerm True lib 0
 
--- | @True@ attaches CLI analyses (uniform, WHNF, unfold) to this node; children
--- keep semantic colour and a short note so the HTML stays small enough to ship.
+-- | Every node is wrapped. @heavy@ adds uniform / WHNF / unfold dumps; light
+-- children still get kind, note, and the pretty surface string.
 annTerm :: Bool -> Library -> Int -> Term -> Html
 annTerm heavy lib prec t =
-  let body = termBody lib prec t
-   in if heavy then wrap heavy lib t body else body
+  wrap heavy lib t (termBody heavy lib prec t)
 
 wrap :: Bool -> Library -> Term -> Html -> Html
 wrap heavy lib t body = el "span" (termAttrs heavy lib t) body
@@ -47,13 +50,16 @@ termAttrs :: Bool -> Library -> Term -> [(Text, Text)]
 termAttrs heavy lib t =
   let k = termKind lib t
       note = explainTerm lib t
-      light =
+      base =
         [ ("class", "tm " <> kindClass k)
         , ("data-kind", kindLabel k)
         , ("data-note", shorten 200 note)
+        , ("data-surface", shorten 200 (renderTerm t))
         ]
-   in if not heavy
-        then light
+      dump = heavy || termSize t <= 48
+      attr p name v = if p then [(name, shorten 320 v)] else []
+   in if not dump
+        then base
         else
           let uni = uniformTerm t
               w = whnf t
@@ -64,293 +70,374 @@ termAttrs heavy lib t =
                     let n = normalize t
                      in if alphaEq n t || alphaEq n w then Nothing else Just n
                   else Nothing
-              attr p name v = if p then [(name, shorten 320 v)] else []
-           in light
-                ++ attr (termSize t <= 64) "data-uniform" uni
+           in base
+                ++ attr (termSize t <= 80) "data-uniform" uni
                 ++ attr (not (alphaEq w t) && termSize t <= 64) "data-whnf" (renderTerm w)
                 ++ maybe [] (\t' -> attr (termSize t <= 64) "data-unfold" (renderTerm t')) u
                 ++ maybe [] (\t' -> attr True "data-nf" (renderTerm t')) nf
 
--- Children of a displayed term: colour and a short note, no dump/compute payload.
+-- | Subterms of a displayed term: same pinpointing, lighter analysis dump.
 sub :: Library -> Int -> Term -> Html
 sub lib = annTerm False lib
 
-termBody :: Library -> Int -> Term -> Html
-termBody lib prec t = case t of
-  TVar v -> varH v
+-- | Hoverable surface glyph that is not itself a term.
+tok :: Kind -> Text -> Text -> Html
+tok k glyph note =
+  el
+    "span"
+    [ ("class", kindClass k)
+    , ("data-kind", kindLabel k)
+    , ("data-note", shorten 200 note)
+    ]
+    (txt glyph)
+
+-- | Principal operator of @t@. Keeps the term's note / surface / uniform so
+-- pointing at ∀, →, λ, … describes that form, while the class follows the
+-- glyph (connective, constructor, …) for colour.
+opGlyph :: Bool -> Library -> Term -> Kind -> Text -> Html
+opGlyph heavy lib t vis glyph =
+  el
+    "span"
+    ( ("class", kindClass vis)
+        : ("data-kind", kindLabel vis)
+        : [p | p@(name, _) <- termAttrs heavy lib t, name /= "class", name /= "data-kind"]
+    )
+    (txt glyph)
+
+punct :: Text -> Text -> Html
+punct = tok KPunct
+
+termBody :: Bool -> Library -> Int -> Term -> Html
+termBody heavy lib prec t = case t of
+  TVar v -> txt (if isDummyVar v then "_" else varText v)
   TUniverse l ->
-    kw "U" <> raw "{" <> el "span" [("class", "sem-num")] (txt (prettyLevel l)) <> raw "}"
+    opGlyph heavy lib t KType "U"
+      <> punct "{" "Universe level subscript."
+      <> tok KNum (prettyLevel l) ("Universe level " <> prettyLevel l <> ".")
+      <> punct "}" "Universe level subscript."
   TProp l ->
-    kw "P" <> raw "{" <> el "span" [("class", "sem-num")] (txt (prettyLevel l)) <> raw "}"
-  TVoid -> ty "Void"
-  TUnit -> ty "Unit"
-  TAxiom -> val "Ax"
-  TInt -> ty "Int"
-  TAtom -> ty "Atom"
-  TTrue -> ty "True"
-  TFalse -> ty "False"
-  TNat n -> el "span" [("class", "sem-num")] (txt (T.pack (show n)))
-  TToken s -> el "span" [("class", "sem-val")] (txt ("\"" <> s <> "\""))
-  TNil -> val "[]"
+    opGlyph heavy lib t KType "P"
+      <> punct "{" "Propositional-universe level subscript."
+      <> tok KNum (prettyLevel l) ("Universe level " <> prettyLevel l <> ".")
+      <> punct "}" "Propositional-universe level subscript."
+  TVoid -> txt "Void"
+  TUnit -> txt "Unit"
+  TAxiom -> txt "Ax"
+  TInt -> txt "Int"
+  TAtom -> txt "Atom"
+  TTrue -> txt "True"
+  TFalse -> txt "False"
+  TNat n -> txt (T.pack (show n))
+  TToken s -> txt ("\"" <> s <> "\"")
+  TNil -> txt "[]"
   TLambda x b ->
     paren (prec > 0) $
-      kw "λ" <> sp <> binder x <> dotSp <> sub lib 0 b
+      opGlyph heavy lib t KKw "λ" <> sp <> binder x <> dotSp <> sub lib 0 b
   TAll a x b ->
     paren (prec > 0) $
-      conn "∀" <> sp <> binder x <> colon <> sub lib 8 a <> dotSp <> sub lib 0 b
+      opGlyph heavy lib t KConn "∀" <> sp <> binder x <> colon <> sub lib 8 a <> dotSp <> sub lib 0 b
   TExists a x b ->
     paren (prec > 0) $
-      conn "∃" <> sp <> binder x <> colon <> sub lib 8 a <> dotSp <> sub lib 0 b
+      opGlyph heavy lib t KConn "∃" <> sp <> binder x <> colon <> sub lib 8 a <> dotSp <> sub lib 0 b
   TNot a ->
-    paren (prec > 8) $ conn "¬" <> sp <> sub lib 8 a
+    paren (prec > 8) $ opGlyph heavy lib t KConn "¬" <> sp <> sub lib 8 a
   TImplies a b ->
-    paren (prec > 1) $ sub lib 2 a <> sp <> conn "⇒" <> sp <> sub lib 1 b
+    paren (prec > 1) $
+      sub lib 2 a <> sp <> opGlyph heavy lib t KConn "⇒" <> sp <> sub lib 1 b
   TOr a b ->
-    paren (prec > 2) $ sub lib 3 a <> sp <> conn "∨" <> sp <> sub lib 2 b
+    paren (prec > 2) $
+      sub lib 3 a <> sp <> opGlyph heavy lib t KConn "∨" <> sp <> sub lib 2 b
   TLt a b ->
-    paren (prec > 4) $ sub lib 5 a <> sp <> conn "<" <> sp <> sub lib 5 b
+    paren (prec > 4) $
+      sub lib 5 a <> sp <> opGlyph heavy lib t KConn "<" <> sp <> sub lib 5 b
   TAnd a b ->
-    paren (prec > 3) $ sub lib 4 a <> sp <> conn "∧" <> sp <> sub lib 3 b
+    paren (prec > 3) $
+      sub lib 4 a <> sp <> opGlyph heavy lib t KConn "∧" <> sp <> sub lib 3 b
   TIff a b ->
-    paren (prec > 1) $ sub lib 2 a <> sp <> conn "⇔" <> sp <> sub lib 2 b
+    paren (prec > 1) $
+      sub lib 2 a <> sp <> opGlyph heavy lib t KConn "⇔" <> sp <> sub lib 2 b
   TFunction a x b
     | isDummyVar x || not (occursFree x b) ->
-        paren (prec > 1) $ sub lib 2 a <> sp <> conn "→" <> sp <> sub lib 1 b
+        paren (prec > 1) $
+          sub lib 2 a <> sp <> opGlyph heavy lib t KConn "→" <> sp <> sub lib 1 b
     | otherwise ->
         paren (prec > 1) $
-          raw "("
+          punct "(" "Dependent function domain: (x : A) → B."
             <> binder x
             <> colon
             <> sub lib 0 a
-            <> raw ")"
+            <> punct ")" "Dependent function domain: (x : A) → B."
             <> sp
-            <> conn "→"
+            <> opGlyph heavy lib t KConn "→"
             <> sp
             <> sub lib 1 b
   TProduct a x b
     | isDummyVar x || not (occursFree x b) ->
-        paren (prec > 3) $ sub lib 4 a <> sp <> conn "×" <> sp <> sub lib 3 b
+        paren (prec > 3) $
+          sub lib 4 a <> sp <> opGlyph heavy lib t KConn "×" <> sp <> sub lib 3 b
     | otherwise ->
         paren (prec > 3) $
-          raw "("
+          punct "(" "Dependent pair domain: (x : A) × B."
             <> binder x
             <> colon
             <> sub lib 0 a
-            <> raw ")"
+            <> punct ")" "Dependent pair domain: (x : A) × B."
             <> sp
-            <> conn "×"
+            <> opGlyph heavy lib t KConn "×"
             <> sp
             <> sub lib 1 b
   TUnion a b ->
-    paren (prec > 2) $ sub lib 3 a <> sp <> conn "⊎" <> sp <> sub lib 2 b
+    paren (prec > 2) $
+      sub lib 3 a <> sp <> opGlyph heavy lib t KConn "⊎" <> sp <> sub lib 2 b
   TEqual tyT a b
     | alphaHead a b ->
-        sub lib 8 a <> sp <> conn "∈" <> sp <> sub lib 5 tyT
+        sub lib 8 a <> sp <> opGlyph heavy lib t KConn "∈" <> sp <> sub lib 5 tyT
     | otherwise ->
         paren (prec > 4) $
-          sub lib 5 a <> sp <> conn "=" <> sp <> sub lib 5 b
+          sub lib 5 a
             <> sp
-            <> conn "∈"
+            <> opGlyph heavy lib t KConn "="
+            <> sp
+            <> sub lib 5 b
+            <> sp
+            <> tok KConn "∈" "Type of an equality: a = b ∈ A."
             <> sp
             <> sub lib 5 tyT
   TMember tm tyT ->
-    sub lib 8 tm <> sp <> conn "∈" <> sp <> sub lib 5 tyT
+    sub lib 8 tm <> sp <> opGlyph heavy lib t KConn "∈" <> sp <> sub lib 5 tyT
   TAdd a b ->
-    paren (prec > 5) $ sub lib 5 a <> sp <> conn "+" <> sp <> sub lib 6 b
+    paren (prec > 5) $
+      sub lib 5 a <> sp <> opGlyph heavy lib t KConn "+" <> sp <> sub lib 6 b
   TSub a b ->
-    paren (prec > 5) $ sub lib 5 a <> sp <> conn "−" <> sp <> sub lib 6 b
+    paren (prec > 5) $
+      sub lib 5 a <> sp <> opGlyph heavy lib t KConn "−" <> sp <> sub lib 6 b
   TMul a b ->
-    paren (prec > 6) $ sub lib 6 a <> sp <> conn "·" <> sp <> sub lib 7 b
+    paren (prec > 6) $
+      sub lib 6 a <> sp <> opGlyph heavy lib t KConn "·" <> sp <> sub lib 7 b
   TDiv a b ->
-    paren (prec > 6) $ sub lib 6 a <> sp <> conn "/" <> sp <> sub lib 7 b
+    paren (prec > 6) $
+      sub lib 6 a <> sp <> opGlyph heavy lib t KConn "/" <> sp <> sub lib 7 b
   TRem a b ->
-    paren (prec > 6) $ sub lib 6 a <> sp <> conn "%" <> sp <> sub lib 7 b
+    paren (prec > 6) $
+      sub lib 6 a <> sp <> opGlyph heavy lib t KConn "%" <> sp <> sub lib 7 b
   TMinus a ->
-    paren (prec > 8) $ conn "−" <> sub lib 8 a
+    paren (prec > 8) $ opGlyph heavy lib t KConn "−" <> sub lib 8 a
   TCons h tl ->
-    paren (prec > 7) $ sub lib 8 h <> sp <> conn "::" <> sp <> sub lib 7 tl
+    paren (prec > 7) $
+      sub lib 8 h <> sp <> opGlyph heavy lib t KConn "::" <> sp <> sub lib 7 tl
   TPair a b ->
-    raw "〈" <> sp <> sub lib 0 a <> raw "," <> sp <> sub lib 0 b <> sp <> raw "〉"
+    opGlyph heavy lib t KVal "〈"
+      <> sp
+      <> sub lib 0 a
+      <> punct "," "Pair separator."
+      <> sp
+      <> sub lib 0 b
+      <> sp
+      <> tok KVal "〉" "Right angle of a pair 〈a, b〉."
   TInl a ->
-    paren (prec > 8) $ kw "inl" <> sp <> sub lib 9 a
+    paren (prec > 8) $ opGlyph heavy lib t KKw "inl" <> sp <> sub lib 9 a
   TInr a ->
-    paren (prec > 8) $ kw "inr" <> sp <> sub lib 9 a
+    paren (prec > 8) $ opGlyph heavy lib t KKw "inr" <> sp <> sub lib 9 a
   TApply f a ->
     paren (prec > 8) $ sub lib 8 f <> sp <> sub lib 9 a
   TSpread p x y body ->
     paren (prec > 0) $
-      kw "let"
+      opGlyph heavy lib t KKw "let"
         <> sp
-        <> raw "〈"
+        <> punct "〈" "Spread binds the two components of a pair."
         <> sp
         <> binder x
-        <> raw ","
+        <> punct "," "Spread binds the two components of a pair."
         <> sp
         <> binder y
         <> sp
-        <> raw "〉"
+        <> punct "〉" "Spread binds the two components of a pair."
         <> sp
-        <> conn "="
+        <> tok KConn "=" "Spread: let 〈x, y〉 = p in …"
         <> sp
         <> sub lib 0 p
         <> sp
-        <> kw "in"
+        <> tok KKw "in" "Spread: the body after eliminating the pair."
         <> sp
         <> sub lib 0 body
   TDecide d x left y right ->
     paren (prec > 0) $
-      kw "decide"
+      opGlyph heavy lib t KKw "decide"
         <> sp
         <> sub lib 0 d
         <> sp
-        <> kw "of"
+        <> tok KKw "of" "Case split: decide t of inl x ⇒ … | inr y ⇒ …"
         <> sp
-        <> kw "inl"
+        <> tok KKw "inl" "Left injection case of decide."
         <> sp
         <> binder x
         <> sp
-        <> conn "⇒"
+        <> tok KConn "⇒" "Maps an injection to its branch."
         <> sp
         <> sub lib 0 left
         <> sp
-        <> conn "|"
+        <> tok KConn "|" "Separates the inl and inr branches of decide."
         <> sp
-        <> kw "inr"
+        <> tok KKw "inr" "Right injection case of decide."
         <> sp
         <> binder y
         <> sp
-        <> conn "⇒"
+        <> tok KConn "⇒" "Maps an injection to its branch."
         <> sp
         <> sub lib 0 right
   TList a ->
-    paren (prec > 8) $ ty "List" <> sp <> sub lib 9 a
+    paren (prec > 8) $ opGlyph heavy lib t KType "List" <> sp <> sub lib 9 a
   TSet a x p ->
-    raw "{"
+    opGlyph heavy lib t KType "{"
       <> sp
       <> binder x
       <> colon
       <> sub lib 0 a
       <> sp
-      <> conn "|"
+      <> tok KConn "|" "Set comprehension: {x : A | P}."
       <> sp
       <> sub lib 0 p
       <> sp
-      <> raw "}"
+      <> punct "}" "Set type closer."
   TIsect a x b
     | isDummyVar x ->
-        paren (prec > 3) $ sub lib 4 a <> sp <> conn "∩" <> sp <> sub lib 3 b
+        paren (prec > 3) $
+          sub lib 4 a <> sp <> opGlyph heavy lib t KConn "∩" <> sp <> sub lib 3 b
     | otherwise ->
         paren (prec > 0) $
-          conn "⋂" <> sp <> binder x <> colon <> sub lib 8 a <> dotSp <> sub lib 0 b
+          opGlyph heavy lib t KConn "⋂" <> sp <> binder x <> colon <> sub lib 8 a <> dotSp <> sub lib 0 b
   TQuotient a x y e
     | (isDummyVar x || not (occursFree x e)) && (isDummyVar y || not (occursFree y e)) ->
-        paren (prec > 3) $ sub lib 4 a <> sp <> conn "//" <> sp <> sub lib 3 e
+        paren (prec > 3) $
+          sub lib 4 a <> sp <> opGlyph heavy lib t KConn "//" <> sp <> sub lib 3 e
     | otherwise ->
         paren (prec > 0) $
-          raw "("
+          punct "(" "Quotient binders (x, y) : A // E."
             <> binder x
-            <> raw ","
+            <> punct "," "The two variables of a quotient equality."
             <> binder y
-            <> raw ")"
+            <> punct ")" "Quotient binders (x, y) : A // E."
             <> colon
             <> sub lib 8 a
             <> sp
-            <> conn "//"
+            <> opGlyph heavy lib t KConn "//"
             <> sp
             <> sub lib 0 e
   TSquash a ->
-    raw "[" <> sp <> sub lib 0 a <> sp <> raw "]"
+    opGlyph heavy lib t KType "["
+      <> sp
+      <> sub lib 0 a
+      <> sp
+      <> punct "]" "Squash closer: [A] hides the extract of A."
   TAny v tyT ->
-    paren (prec > 8) $ kw "any" <> sp <> sub lib 9 v <> sp <> sub lib 9 tyT
+    paren (prec > 8) $
+      opGlyph heavy lib t KKw "any" <> sp <> sub lib 9 v <> sp <> sub lib 9 tyT
   TIntEq a b th els ->
     paren (prec > 8) $
-      kw "int_eq" <> sp <> sub lib 9 a <> sp <> sub lib 9 b
+      opGlyph heavy lib t KKw "int_eq"
+        <> sp
+        <> sub lib 9 a
+        <> sp
+        <> sub lib 9 b
         <> sp
         <> sub lib 9 th
         <> sp
         <> sub lib 9 els
   TLess a b th els ->
     paren (prec > 8) $
-      kw "less" <> sp <> sub lib 9 a <> sp <> sub lib 9 b
+      opGlyph heavy lib t KKw "less"
+        <> sp
+        <> sub lib 9 a
+        <> sp
+        <> sub lib 9 b
         <> sp
         <> sub lib 9 th
         <> sp
         <> sub lib 9 els
   TAtomEq a b th els ->
     paren (prec > 8) $
-      kw "atom_eq" <> sp <> sub lib 9 a <> sp <> sub lib 9 b
+      opGlyph heavy lib t KKw "atom_eq"
+        <> sp
+        <> sub lib 9 a
+        <> sp
+        <> sub lib 9 b
         <> sp
         <> sub lib 9 th
         <> sp
         <> sub lib 9 els
   TListInd lst base x xs ih step ->
     paren (prec > 0) $
-      kw "list_ind"
+      opGlyph heavy lib t KKw "list_ind"
         <> sp
         <> sub lib 9 lst
         <> sp
         <> sub lib 9 base
         <> sp
-        <> raw "("
+        <> punct "(" "list_ind step: (x, xs, ih. t)."
         <> binder x
-        <> raw ","
+        <> punct "," "list_ind binds head, tail, and inductive hypothesis."
         <> sp
         <> binder xs
-        <> raw ","
+        <> punct "," "list_ind binds head, tail, and inductive hypothesis."
         <> sp
         <> binder ih
         <> dotSp
         <> sub lib 0 step
-        <> raw ")"
+        <> punct ")" "list_ind step closer."
   TInd n x ih down base y jh up ->
     paren (prec > 0) $
-      kw "ind"
-        <> raw "("
+      opGlyph heavy lib t KKw "ind"
+        <> punct "(" "Integer induction: ind(n; down; base; up)."
         <> sub lib 0 n
-        <> raw ";"
+        <> punct ";" "Integer induction clauses: down, base, up."
         <> sp
         <> binder x
-        <> raw ","
+        <> punct "," "Negative-direction binders of ind."
         <> sp
         <> binder ih
         <> dotSp
         <> sub lib 0 down
-        <> raw ";"
+        <> punct ";" "Integer induction clauses: down, base, up."
         <> sp
         <> sub lib 0 base
-        <> raw ";"
+        <> punct ";" "Integer induction clauses: down, base, up."
         <> sp
         <> binder y
-        <> raw ","
+        <> punct "," "Positive-direction binders of ind."
         <> sp
         <> binder jh
         <> dotSp
         <> sub lib 0 up
-        <> raw ")"
+        <> punct ")" "Integer induction closer."
   TOp (Operator oid params) bts ->
     let name = opIdText oid
-        nameH = el "span" [("class", kindClass (termKind lib t))] (txt name)
+        nameH = opGlyph heavy lib t (termKind lib t) name
         pdoc
           | null params = emptyH
           | otherwise =
-              raw "{"
-                <> mconcat (punctuate (raw "; ") (map (txt . prettyParam) params))
-                <> raw "}"
+              punct "{" "Operator parameters."
+                <> mconcat (punctuate (punct ";" "Parameter separator." <> sp) (map paramH params))
+                <> punct "}" "Operator parameters."
         bdoc
           | null bts && null params = emptyH
           | otherwise =
-              raw "("
-                <> mconcat (punctuate (raw "; ") (map (prettyBound lib) bts))
-                <> raw ")"
+              punct "(" "Operator subterm arguments."
+                <> mconcat (punctuate (punct ";" "Argument separator." <> sp) (map (prettyBound lib) bts))
+                <> punct ")" "Operator subterm arguments."
      in nameH <> pdoc <> bdoc
 
-prettyParam :: Parameter -> Text
-prettyParam = \case
-  NatParam n -> T.pack (show n)
-  TokenParam s -> "\"" <> s <> "\""
-  StringParam s -> "\"" <> s <> "\""
-  VarParam v -> varText v
-  LevelParam l -> prettyLevel l
+paramH :: Parameter -> Html
+paramH = \case
+  NatParam n ->
+    tok KNum (T.pack (show n)) ("Natural-number parameter " <> T.pack (show n) <> ".")
+  TokenParam s ->
+    tok KVal ("\"" <> s <> "\"") ("Token parameter " <> T.pack (show s) <> ".")
+  StringParam s ->
+    tok KVal ("\"" <> s <> "\"") ("String parameter " <> T.pack (show s) <> ".")
+  VarParam v ->
+    tok KVar (varText v) ("Variable parameter " <> varText v <> ".")
+  LevelParam l ->
+    tok KNum (prettyLevel l) ("Level parameter " <> prettyLevel l <> ".")
 
 prettyBound :: Library -> BoundTerm -> Html
 prettyBound lib (BoundTerm vs t) =
@@ -358,14 +445,16 @@ prettyBound lib (BoundTerm vs t) =
   where
     binders
       | null vs = emptyH
-      | otherwise = mconcat (punctuate (raw "," <> sp) (map binder vs)) <> dotSp
+      | otherwise =
+          mconcat (punctuate (punct "," "Bound-variable separator." <> sp) (map binder vs)) <> dotSp
 
 alphaHead :: Term -> Term -> Bool
 alphaHead (TVar x) (TVar y) = x == y
 alphaHead a b = a == b
 
 paren :: Bool -> Html -> Html
-paren True h = raw "(" <> h <> raw ")"
+paren True h =
+  punct "(" "Grouping parentheses." <> h <> punct ")" "Grouping parentheses."
 paren False h = h
 
 sp :: Html
@@ -373,23 +462,11 @@ sp = raw " "
 
 -- | Spaced colon in bindings: @x : A@.
 colon :: Html
-colon = sp <> raw ":" <> sp
+colon = sp <> tok KBinder ":" "Type ascription in a binder: x : A." <> sp
 
 -- | Binder dot with a following space: @λ x. t@, @∀ x : A. B@.
 dotSp :: Html
-dotSp = raw "." <> sp
-
-kw :: Text -> Html
-kw s = el "span" [("class", "sem-kw")] (txt s)
-
-ty :: Text -> Html
-ty s = el "span" [("class", "sem-type")] (txt s)
-
-conn :: Text -> Html
-conn s = el "span" [("class", "sem-conn")] (txt s)
-
-val :: Text -> Html
-val s = el "span" [("class", "sem-val")] (txt s)
+dotSp = tok KBinder "." "End of a binding prefix (λx. t, ∀x:A. B, …)." <> sp
 
 binder :: Var -> Html
 binder v =
@@ -400,11 +477,6 @@ binder v =
     , ("data-note", "Binding occurrence of " <> nm <> ".")
     ]
     (txt nm)
-  where
-    nm = if isDummyVar v then "_" else varText v
-
-varH :: Var -> Html
-varH v = el "span" [("class", "sem-var")] (txt nm)
   where
     nm = if isDummyVar v then "_" else varText v
 
@@ -453,7 +525,7 @@ renderHyp lib i h =
       | isHiddenVar (hVar h) || isDummyVar (hVar h) =
           renderTermH lib (hType h)
       | otherwise =
-          binder (hVar h) <> sp <> conn ":" <> sp <> renderTermH lib (hType h)
+          binder (hVar h) <> colon <> renderTermH lib (hType h)
 
 --------------------------------------------------------------------------------
 -- Tactics
@@ -530,9 +602,9 @@ tacBody lib = \case
             <> raw "]"
   TxThin i -> txt ("thin " <> tshow i)
   TxDecideInt a b ->
-    txt "decide " <> renderTermH lib a <> sp <> conn "=" <> sp <> renderTermH lib b
+    txt "decide " <> renderTermH lib a <> sp <> tok KConn "=" "Integer equality decided by compute." <> sp <> renderTermH lib b
   TxDecideLt a b ->
-    txt "decide " <> renderTermH lib a <> sp <> conn "<" <> sp <> renderTermH lib b
+    txt "decide " <> renderTermH lib a <> sp <> tok KConn "<" "Integer comparison decided by compute." <> sp <> renderTermH lib b
   TxCases t -> txt "decide " <> renderTermH lib t
   TxThen a b ->
     renderTacticH lib a <> sp <> comb "THEN" <> sp <> renderTacticH lib b
@@ -580,7 +652,7 @@ renderNode lib open addr = \case
         summary =
           el "span" [("class", "rule"), ("data-kind", "tactic"), ("data-note", explainRule name)] (txt name)
             <> sp
-            <> el "span" [("class", "turnstile")] (txt "⊢")
+            <> el "span" [("class", "turnstile"), ("data-kind", "goal"), ("data-note", "The sequent turnstile: hypotheses above prove the conclusion.")] (txt "⊢")
             <> sp
             <> el "span" [("class", "pnode-concl")] (sub lib 0 (seqConcl sq))
         extra =
@@ -632,9 +704,9 @@ highlight = go . T.unpack
     go (c : rest)
       | isIdentStart c =
           let (w, more) = span isIdentChar rest
-              tok = c : w
-              cls = tokenClass (T.pack tok)
-           in el "span" [("class", cls)] (txt (T.pack tok)) <> go more
+              ident = c : w
+              cls = tokenClass (T.pack ident)
+           in el "span" [("class", cls)] (txt (T.pack ident)) <> go more
       | isDigit c =
           let (w, more) = span isDigit rest
            in el "span" [("class", "sem-num")] (txt (T.pack (c : w))) <> go more

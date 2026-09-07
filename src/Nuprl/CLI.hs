@@ -106,7 +106,7 @@ optsInfo =
   info
     (parseOptions <**> helper)
     ( fullDesc
-        <> header "nuprl — a modern NuPRL computational type theory prover"
+        <> header "nuprl — a NuPRL computational type theory prover"
         <> progDesc "Prove theorems in computational type theory. Run with no arguments for the REPL."
     )
 

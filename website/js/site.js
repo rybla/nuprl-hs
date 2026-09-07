@@ -19,6 +19,7 @@
     tip.innerHTML =
       (kind ? '<div class="tip-kind"></div>' : '') +
       (note ? '<div class="tip-note"></div>' : '') +
+      row('surface', el.getAttribute('data-surface')) +
       row('uniform', el.getAttribute('data-uniform')) +
       row('unfolds', el.getAttribute('data-unfold')) +
       row('whnf', el.getAttribute('data-whnf')) +
@@ -44,27 +45,55 @@
     tip.style.top = y + 'px';
   }
 
-  let pinned = null;
-  function show(ev) {
-    const el = ev.target.closest('[data-kind]');
-    if (!el || pinned) return;
-    if (!fill(el)) return;
-    place(ev);
+  // Innermost [data-kind] under the pointer, not merely the nearest ancestor.
+  function pinpoint(ev) {
+    const stack = document.elementsFromPoint(ev.clientX, ev.clientY);
+    const hits = [];
+    for (let i = 0; i < stack.length; i++) {
+      const e = stack[i];
+      if (e === tip || (tip.contains && tip.contains(e))) continue;
+      if (e.hasAttribute && e.hasAttribute('data-kind')) hits.push(e);
+    }
+    if (!hits.length) return null;
+    for (let i = 0; i < hits.length; i++) {
+      const el = hits[i];
+      let nested = false;
+      for (let j = 0; j < hits.length; j++) {
+        if (hits[j] !== el && el.contains(hits[j])) { nested = true; break; }
+      }
+      if (!nested) return el;
+    }
+    return hits[0];
   }
-  function hide() { if (!pinned) tip.hidden = true; }
+
+  let pinned = null;
+  let hitEl = null;
+  function markHit(el) {
+    if (hitEl === el) return;
+    if (hitEl) hitEl.classList.remove('syntax-hit');
+    hitEl = el;
+    if (hitEl) hitEl.classList.add('syntax-hit');
+  }
+  function hide() {
+    if (pinned) return;
+    tip.hidden = true;
+    markHit(null);
+  }
 
   document.addEventListener('mousemove', function (ev) {
     if (pinned) return;
-    const el = ev.target.closest('[data-kind]');
+    const el = pinpoint(ev);
     if (!el) { hide(); return; }
+    markHit(el);
     if (!fill(el)) return;
     place(ev);
   });
   document.addEventListener('click', function (ev) {
-    const el = ev.target.closest('[data-kind]');
+    const el = pinpoint(ev);
     if (!el) { pinned = null; hide(); return; }
     if (pinned === el) { pinned = null; hide(); return; }
     pinned = el;
+    markHit(el);
     fill(el);
     place(ev);
   });
