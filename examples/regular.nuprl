@@ -1,13 +1,13 @@
--- | Regular sets and Kleene algebra, following Constable et al. §11.4.
+-- | Regular sets, language preorder, and Kleene algebra, following Constable et al. §11.4.
 --
--- Words are lists over an alphabet `E = Atom`. A “regular set” is a
--- predicate `E* → U{i}` (a subset of `E*`). Union `r + s`, concatenation
--- `r s`, and star `r*` are defined as in the book; containment and equality
--- of sets are pointwise. The identities below are true of *all* subsets,
--- not only the regular ones (the book’s observation after Figure 11.8).
+-- Words are lists over an alphabet `E = Atom`. A language is a predicate
+-- `E* → U{i}`. Union `r + s`, concatenation `r s`, and star `r*` are
+-- regular expressions. Language containment `Contained(r; s)` forms a preorder
+-- (reflexive and transitive), and mutual containment `Req(r; s)` forms an
+-- equivalence relation (reflexive, symmetric, transitive).
 theory Regular
 
-comment book "Constable et al. §11.4: regular sets."
+comment book "Constable et al. §11.4: regular sets, Kleene algebra, and language equivalence."
 
 abs E == Atom
 abs Estar == List Atom
@@ -32,36 +32,80 @@ soft E, Estar, RE, Append, Flatten, AllIn, Contained, Req
 soft Plus, Concat, Star, EmptyR, Epsilon, Singleton
 
 --------------------------------------------------------------------------------
--- Append (the book’s `append_`)
+-- Language containment: preorder
 --------------------------------------------------------------------------------
 
-theorem append_nil :
-  ∀y:Estar. Append([]; y) = y ∈ Estar
+theorem contained_refl :
+  ∀r:RE. Contained(r; r)
 proof
-  intro y
-  auto
+  intro r
+  intro x
+  intro p
+  hyp
 qed
 
-theorem append_cons_closed :
-  Append("a" :: []; "b" :: []) = "a" :: "b" :: [] ∈ Estar
+theorem contained_trans :
+  ∀r:RE. ∀s:RE. ∀t:RE.
+    Contained(r; s) → Contained(s; t) → Contained(r; t)
 proof
-  auto
-qed
-
-theorem flatten_nil :
-  Flatten([]) = [] ∈ Estar
-proof
-  eq
-qed
-
-theorem flatten_one :
-  Flatten(("a" :: []) :: []) = "a" :: [] ∈ Estar
-proof
-  auto
+  intro r
+  intro s
+  intro t
+  intro rs
+  intro st
+  intro x
+  intro rx
+  elim 4 with x THENL [
+    hyp,
+    elim 8 with rx THENL [
+      hyp,
+      elim 5 with x THENL [
+        hyp,
+        elim 10 with y1 THENL [hyp, hyp]
+      ]
+    ]
+  ]
 qed
 
 --------------------------------------------------------------------------------
--- Union (plus)
+-- Language equivalence: equivalence relation
+--------------------------------------------------------------------------------
+
+theorem req_refl :
+  ∀r:RE. Req(r; r)
+proof
+  intro r
+  split THENL [lemma contained_refl [r] THEN hyp, lemma contained_refl [r] THEN hyp]
+qed
+
+theorem req_sym :
+  ∀r:RE. ∀s:RE. Req(r; s) → Req(s; r)
+proof
+  intro r
+  intro s
+  intro p
+  elim 3
+  split THENL [hyp 5, hyp 4]
+qed
+
+theorem req_trans :
+  ∀r:RE. ∀s:RE. ∀t:RE. Req(r; s) → Req(s; t) → Req(r; t)
+proof
+  intro r
+  intro s
+  intro t
+  intro rs
+  intro st
+  elim 4
+  elim 5
+  split THENL [
+    lemma contained_trans [r, s, t] THEN elim 10 with u THENL [hyp, elim 11 with u1 THENL [hyp, hyp]],
+    lemma contained_trans [t, s, r] THEN elim 10 with v1 THENL [hyp, elim 11 with v THENL [hyp, hyp]]
+  ]
+qed
+
+--------------------------------------------------------------------------------
+-- Union (Plus) and Empty language
 --------------------------------------------------------------------------------
 
 theorem plus_left :
@@ -96,17 +140,25 @@ proof
   elim 4 THENL [right THEN hyp, left THEN hyp]
 qed
 
-theorem contained_refl :
-  ∀r:RE. Contained(r; r)
+theorem plus_empty_l :
+  ∀r:RE. Contained(Plus(r; EmptyR); r)
 proof
   intro r
   intro x
   intro p
-  hyp
+  elim 3 THENL [hyp, elim 4]
+qed
+
+theorem empty_none :
+  ∀x:Estar. ¬(EmptyR x)
+proof
+  intro x
+  intro p
+  elim 2
 qed
 
 --------------------------------------------------------------------------------
--- Star
+-- Star and Kleene identities
 --------------------------------------------------------------------------------
 
 -- The empty word is in every star (`star_lemma_1`).
@@ -136,33 +188,6 @@ proof
   ]
 qed
 
--- Empty language: nothing is in `EmptyR`.
-theorem empty_none :
-  ∀x:Estar. ¬(EmptyR x)
-proof
-  intro x
-  intro p
-  elim 2
-qed
-
--- `{ε}` contains the empty word.
-theorem epsilon_nil :
-  Epsilon []
-proof
-  eq
-qed
-
-theorem singleton_a :
-  Singleton("a") ("a" :: [])
-proof
-  eq THEN auto
-qed
-
---------------------------------------------------------------------------------
--- Kleene: `r* s*` is contained in `(r+s)*` at the empty word, and
--- `(r+s)*` contains each of `r*` and `s*` (the book’s lemma_4 / lemma_2).
---------------------------------------------------------------------------------
-
 theorem plus_star_nil :
   ∀r:RE. ∀s:RE. Star(Plus(r; s)) []
 proof
@@ -171,7 +196,7 @@ proof
   lemma star_nil [Plus(r; s)] THEN hyp
 qed
 
--- `r ⊆ r+s`, hence (with star_one) a word of `r` is in `(r+s)*`.
+-- `r ⊆ r+s`, hence a word of `r` is in `(r+s)*`.
 theorem r_in_plus_star :
   ∀r:RE. ∀s:RE. ∀u:Estar. r u → Star(Plus(r; s)) u
 proof
@@ -182,16 +207,6 @@ proof
   lemma star_one [Plus(r; s), u] THEN elim 5 THEN left THEN hyp
 qed
 
--- Req is an equivalence: reflexivity.
-theorem req_refl :
-  ∀r:RE. Req(r; r)
-proof
-  intro r
-  split THENL [lemma contained_refl [r] THEN hyp, lemma contained_refl [r] THEN hyp]
-qed
-
--- The two-sided Kleene identity at the empty word:
--- `(r* s*)*` and `(r+s)*` both contain `ε`.
 theorem kleene_epsilon :
   ∀r:RE. ∀s:RE. Star(Plus(r; s)) [] ∧ Star(r) [] ∧ Star(s) []
 proof
@@ -204,4 +219,16 @@ proof
       lemma star_nil [s] THEN hyp
     ]
   ]
+qed
+
+theorem epsilon_nil :
+  Epsilon []
+proof
+  eq
+qed
+
+theorem singleton_a :
+  Singleton("a") ("a" :: [])
+proof
+  eq THEN auto
 qed

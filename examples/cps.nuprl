@@ -4,21 +4,27 @@
 -- continuation-passing style with answer type `R`. Taking `R = False`
 -- recovers double negation: `Cont(A; False) = ¬¬A`.
 --
--- Return and bind are the continuation monad. The Kolmogorov / Gödel–Gentzen
--- translation of classical logic is this CPS transform at `R = False`:
--- `A → ¬¬A` is return, and `¬¬¬A → ¬A` is the constructive triple-negation
--- law. Full DNE `¬¬A → A` is the classical `call/cc` (Peirce), and is not
--- derived. Irrefutability of excluded middle *is* constructive.
+-- This theory formalizes:
+-- 1. The continuation monad: return, bind, Kleisli composition, and monad laws
+--    (left identity, associativity, Kleisli associativity).
+-- 2. The Kolmogorov / Gödel–Gentzen double-negation translation of constructive
+--    logic, including connectives and constructive irrefutability of LEM.
+-- 3. Call-by-value CPS function types and compositional pipeline.
 theory CPS
+
+comment book "Continuation monad, algebraic laws, and constructive double-negation embedding."
 
 abs DN(A) == ¬¬A
 abs Cont(A; R) == (A → R) → R
+abs CReturn(x) == λk. k x
+abs CBind(m; f) == λk. m (λx. f x k)
+abs Kleisli(f; g) == λx. CBind(f x; g)
 abs Stable(A) == ¬¬A → A
 
-soft DN, Cont, Stable
+soft DN, Cont, CReturn, CBind, Kleisli, Stable
 
 --------------------------------------------------------------------------------
--- The continuation monad
+-- The continuation monad: typing
 --------------------------------------------------------------------------------
 
 -- Return: `a ↦ λk. k a`. At `R = False` this is `A → ¬¬A`.
@@ -32,14 +38,7 @@ proof
   elim 4 with a THENL [hyp, hyp]
 qed
 
-theorem dni :
-  ∀A:U{i}. A → ¬¬A
-proof
-  intro A
-  lemma cont_return [A, False] THEN hyp
-qed
-
--- Bind / map-continuation. At `R = False` this is ` (A → ¬¬B) → ¬¬A → ¬¬B `.
+-- Bind / map-continuation. At `R = False` this is `(A → ¬¬B) → ¬¬A → ¬¬B`.
 theorem cont_bind :
   ∀A:U{i}. ∀B:U{i}. ∀R:U{i}.
     (A → Cont(B; R)) → Cont(A; R) → Cont(B; R)
@@ -54,6 +53,88 @@ proof
     eq THEN elim 4 with x THENL [hyp, elim 8 with k THENL [hyp, hyp]],
     hyp
   ]
+qed
+
+--------------------------------------------------------------------------------
+-- Continuation monad: algebraic laws
+--------------------------------------------------------------------------------
+
+theorem cont_left_unit :
+  ∀A:U{i}. ∀B:U{i}. ∀R:U{i}.
+  ∀x:A. ∀f:(A → Cont(B; R)). ∀k:(B → R).
+    CBind(CReturn(x); f) k = f x k ∈ R
+proof
+  intro A
+  intro B
+  intro R
+  intro x
+  intro f
+  intro k
+  reduce
+  eq THEN auto
+qed
+
+theorem cont_assoc :
+  ∀A:U{i}. ∀B:U{i}. ∀C:U{i}. ∀R:U{i}.
+  ∀m:Cont(A; R). ∀f:(A → Cont(B; R)). ∀g:(B → Cont(C; R)). ∀k:(C → R).
+    CBind(CBind(m; f); g) k = CBind(m; (λx. CBind(f x; g))) k ∈ R
+proof
+  intro A
+  intro B
+  intro C
+  intro R
+  intro m
+  intro f
+  intro g
+  intro k
+  reduce
+  eq THEN auto
+qed
+
+theorem kleisli_assoc :
+  ∀A:U{i}. ∀B:U{i}. ∀C:U{i}. ∀D:U{i}. ∀R:U{i}.
+  ∀f:(A → Cont(B; R)). ∀g:(B → Cont(C; R)). ∀h:(C → Cont(D; R)).
+  ∀x:A. ∀k:(D → R).
+    Kleisli(Kleisli(f; g); h) x k = Kleisli(f; (λy. Kleisli(g; h) y)) x k ∈ R
+proof
+  intro A
+  intro B
+  intro C
+  intro D
+  intro R
+  intro f
+  intro g
+  intro h
+  intro x
+  intro k
+  reduce
+  eq THEN auto
+qed
+
+theorem kleisli_left_id :
+  ∀A:U{i}. ∀B:U{i}. ∀R:U{i}.
+  ∀f:(A → Cont(B; R)). ∀x:A. ∀k:(B → R).
+    Kleisli((λa. CReturn(a)); f) x k = f x k ∈ R
+proof
+  intro A
+  intro B
+  intro R
+  intro f
+  intro x
+  intro k
+  reduce
+  eq THEN auto
+qed
+
+--------------------------------------------------------------------------------
+-- Double-negation translation
+--------------------------------------------------------------------------------
+
+theorem dni :
+  ∀A:U{i}. A → ¬¬A
+proof
+  intro A
+  lemma cont_return [A, False] THEN hyp
 qed
 
 theorem dn_map :
@@ -78,10 +159,6 @@ proof
   lemma cont_bind [A, B, False] THEN hyp
 qed
 
---------------------------------------------------------------------------------
--- Triple negation and stability
---------------------------------------------------------------------------------
-
 -- `¬¬¬A → ¬A` is constructive (unlike `¬¬A → A`).
 theorem triple_neg :
   ∀A:U{i}. ¬¬¬A → ¬A
@@ -91,10 +168,6 @@ proof
   intro a
   lemma dni [A] THEN elim 4 with a THENL [hyp, elim 2 with y THENL [hyp, hyp]]
 qed
-
--- Call/cc as Peirce, `((A → R) → A) → A`, is classical: with `R = False`
--- it is `(¬A → A) → A`, and DNE at every type yields it. The constructive
--- fragment stops at triple negation and at `Stable` from a decision.
 
 theorem stable_from_em :
   ∀A:U{i}. (A ∨ ¬A) → Stable(A)
@@ -106,7 +179,7 @@ proof
 qed
 
 --------------------------------------------------------------------------------
--- Double-negation translation of the connectives
+-- Double-negation translation of connectives
 --------------------------------------------------------------------------------
 
 theorem dn_and_intro :
@@ -201,7 +274,6 @@ proof
   ]
 qed
 
--- Kolmogorov translation of a judgement: prove `¬¬A` instead of `A`.
 theorem kolmogorov_em :
   ∀A:U{i}. DN(A ∨ ¬A)
 proof

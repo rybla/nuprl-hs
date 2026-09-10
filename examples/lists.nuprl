@@ -1,23 +1,22 @@
--- | Lists: nil, cons, the recursor, and closed computation of `list_ind`.
+-- | Foundational list theory: formation, constructors, discrimination,
+-- the structural recursor, and algebraic reduction laws.
 --
--- A singleton list is `h :: []`; `[t]` is squash, `[a, b, …]` (with a
--- comma) is a list literal.
+-- This theory formalizes polymorphic list operations (Append, Length, Map,
+-- IsEmpty), establishes their definitional reduction equations at nil and cons,
+-- proves constructor discrimination (`nil_ne_cons`), and provides exemplary
+-- evaluations for practical programming languages theory work.
 theory Lists
 
 abs Append(xs; ys) == list_ind xs (ys) (h, t, ih. h :: ih)
 abs Length(xs) == list_ind xs 0 (h, t, ih. ih + 1)
+abs Map(f; xs) == list_ind xs [] (h, t, ih. f h :: ih)
+abs IsEmpty(xs) == list_ind xs True (h, t, ih. False)
 
-soft Append, Length
+soft Append, Length, Map, IsEmpty
 
 --------------------------------------------------------------------------------
 -- Formation and constructors
 --------------------------------------------------------------------------------
-
-theorem nil_is_list :
-  [] ∈ List Int
-proof
-  eq
-qed
 
 theorem nil_poly :
   ∀A:U{i}. [] ∈ List A
@@ -35,18 +34,6 @@ proof
   intro with h THENL [hyp, hyp]
 qed
 
-theorem cons_in_list :
-  1 :: [] ∈ List Int
-proof
-  auto
-qed
-
-theorem list_lit :
-  [1, 2, 3] ∈ List Int
-proof
-  auto
-qed
-
 --------------------------------------------------------------------------------
 -- Discrimination
 --------------------------------------------------------------------------------
@@ -62,7 +49,7 @@ proof
 qed
 
 --------------------------------------------------------------------------------
--- Recursion / induction
+-- Structural recursion
 --------------------------------------------------------------------------------
 
 -- The list recursor. Extract is `list_ind`.
@@ -83,48 +70,106 @@ proof
   ]
 qed
 
-theorem list_ind_nil :
-  list_ind [] 0 (h, t, ih. ih + 1) = 0 ∈ Int
+--------------------------------------------------------------------------------
+-- Algebraic laws: Append
+--------------------------------------------------------------------------------
+
+theorem append_nil_l :
+  ∀A:U{i}. ∀ys:List A. Append([] ; ys) = ys ∈ List A
 proof
-  eq
+  intro A
+  intro ys
+  auto
 qed
 
-theorem list_ind_cons :
-  list_ind (1 :: 2 :: []) 0 (h, t, ih. ih + 1) = 2 ∈ Int
+theorem append_cons_l :
+  ∀A:U{i}. ∀x:A. ∀xs:List A. ∀ys:List A.
+    Append(x :: xs; ys) = x :: Append(xs; ys) ∈ List A
 proof
-  eq
+  intro A
+  intro x
+  intro xs
+  intro ys
+  auto
 qed
+
+--------------------------------------------------------------------------------
+-- Algebraic laws: Map
+--------------------------------------------------------------------------------
+
+theorem map_nil :
+  ∀A:U{i}. ∀B:U{i}. ∀f:(A → B). Map(f; []) = [] ∈ List B
+proof
+  intro A
+  intro B
+  intro f
+  auto
+qed
+
+theorem map_cons :
+  ∀A:U{i}. ∀B:U{i}. ∀f:(A → B). ∀x:A. ∀xs:List A.
+    Map(f; x :: xs) = f x :: Map(f; xs) ∈ List B
+proof
+  intro A
+  intro B
+  intro f
+  intro x
+  intro xs
+  auto
+qed
+
+--------------------------------------------------------------------------------
+-- Algebraic laws: Length
+--------------------------------------------------------------------------------
 
 theorem length_nil :
   Length([]) = 0 ∈ Int
 proof
-  eq
-qed
-
-theorem length_two :
-  Length([1, 2]) = 2 ∈ Int
-proof
-  eq
-qed
-
-theorem append_nil :
-  Append([] ; 1 :: []) = 1 :: [] ∈ List Int
-proof
   auto
 qed
 
-theorem append_cons :
-  Append(1 :: [] ; 2 :: []) = 1 :: 2 :: [] ∈ List Int
+theorem length_cons :
+  ∀A:U{i}. ∀x:A. ∀xs:List A.
+    Length(x :: xs) = Length(xs) + 1 ∈ Int
 proof
+  intro A
+  intro x
+  intro xs
   auto
 qed
 
 --------------------------------------------------------------------------------
--- Map as a term
+-- Predicates: IsEmpty
 --------------------------------------------------------------------------------
 
-theorem map_add1 :
-  list_ind (0 :: 1 :: []) [] (h, t, ih. (h + 1) :: ih) = (1 :: 2 :: []) ∈ List Int
+theorem is_empty_nil :
+  IsEmpty([]) = True ∈ U{i}
+proof
+  auto
+qed
+
+theorem is_empty_cons :
+  ∀A:U{i}. ∀x:A. ∀xs:List A.
+    IsEmpty(x :: xs) = False ∈ U{i}
+proof
+  intro A
+  intro x
+  intro xs
+  auto
+qed
+
+--------------------------------------------------------------------------------
+-- Exemplary evaluations
+--------------------------------------------------------------------------------
+
+theorem append_example :
+  Append([1, 2] ; [3, 4]) = [1, 2, 3, 4] ∈ List Int
+proof
+  auto
+qed
+
+theorem map_example :
+  Map((λx. x + 10); [1, 2]) = [11, 12] ∈ List Int
 proof
   auto
 qed

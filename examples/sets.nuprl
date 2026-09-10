@@ -177,6 +177,25 @@ proof
   elim 4
 qed
 
+theorem subset_trans :
+  ∀A:U{i}. ∀B:U{i}. ∀C:U{i}.
+    Subset(A; B) → Subset(B; C) → Subset(A; C)
+proof
+  intro A
+  intro B
+  intro C
+  intro ab
+  intro bc
+  intro x
+  elim 4 with x THENL [
+    hyp,
+    elim 5 with x THENL [
+      hyp,
+      hyp
+    ]
+  ]
+qed
+
 --------------------------------------------------------------------------------
 -- Standard subsets of Int and Atom
 --------------------------------------------------------------------------------

@@ -1,27 +1,45 @@
 -- | Lists as a programming theory, following Constable et al. §11.2
 -- (the Nuprl book’s “Lists and Arrays”).
 --
--- A discrete type has decidable equality; a predicate is decidable when it
--- or its negation holds at every point. Head is defined in two ways (partial
--- vs. defaulted), tail and length by `list_ind`, membership and
--- non-repetition as recursively defined propositions, and a list fold is
--- extracted from an existence theorem (Figure 11.3).
+-- This theory formalizes:
+-- 1. Discrete types and decidable equality (`int_discrete`, `unit_discrete`,
+--    `list_decide_nil`).
+-- 2. Total head with a default and tail operations (`Hd`, `Tl`).
+-- 3. Membership (`On`) and context non-repetition (`Unique`) for symbol tables.
+-- 4. Environment data structures (association lists) with `EmptyEnv`, `Extend`,
+--    and `Lookup` for language interpreters and typecheckers.
+-- 5. Higher-order list combinators: `Foldr` and `Filter` with reduction equations.
 theory ListProg
 
-comment book "Constable et al. §11.2: lists and arrays as a programming theory."
+comment book "Constable et al. §11.2: list programming, environments, and higher-order combinators."
 
 abs Discrete(T) == ∀x:T. ∀y:T. x = y ∈ T ∨ ¬(x = y ∈ T)
 abs Decidable(T; F) == ∀x:T. F x ∨ ¬(F x)
 abs Hd(d; l) == list_ind l (d) (h, t, v. h)
 abs Tl(l) == list_ind l ([]) (h, t, v. t)
-abs Len(l) == list_ind l 0 (h, t, v. v + 1)
 abs On(e; l; T) == list_ind l False (h, t, v. (e = h ∈ T) ∨ v)
 abs Unique(l; T) == list_ind l True (h, t, v. ¬(On(h; t; T)) ∧ v)
-abs Append(xs; ys) == list_ind xs (ys) (h, t, ih. h :: ih)
-abs Sum(l) == list_ind l 0 (h, t, v. h + v)
-abs Map(f; xs) == list_ind xs ([]) (h, t, ih. f h :: ih)
 
-soft Discrete, Decidable, Hd, Tl, Len, On, Unique, Append, Sum, Map
+-- Environment / symbol-table data structures for interpreters
+abs Env(V) == List (Atom × V)
+abs EmptyEnv == []
+abs Extend(x; v; env) == <x, v> :: env
+abs Lookup(d; x; env) ==
+  list_ind env (d) (entry, tl, ih.
+    atom_eq (let <k, val> = entry in k) x
+      (let <k, val> = entry in val)
+      ih)
+
+-- Higher-order combinators
+abs Foldr(f; z; xs) == list_ind xs (z) (h, t, ih. f h ih)
+abs Filter(p; xs) ==
+  list_ind xs ([]) (h, t, ih.
+    decide (p h) of
+      inl u => h :: ih
+    | inr v => ih)
+
+soft Discrete, Decidable, Hd, Tl, On, Unique
+soft Env, EmptyEnv, Extend, Lookup, Foldr, Filter
 
 --------------------------------------------------------------------------------
 -- Discreteness and decidability
@@ -44,8 +62,19 @@ proof
   eq
 qed
 
+theorem list_decide_nil :
+  ∀A:U{i}. ∀l:List A. l = [] ∈ List A ∨ ¬(l = [] ∈ List A)
+proof
+  intro A
+  intro l
+  elim 2 THENL [
+    left THEN eq,
+    right THEN intro p THEN elim 6
+  ]
+qed
+
 --------------------------------------------------------------------------------
--- Head with a default (hdd of Figure 11.2)
+-- Head with a default and tail
 --------------------------------------------------------------------------------
 
 theorem hd_nil :
@@ -75,10 +104,6 @@ proof
   elim 3 THENL [hyp, hyp]
 qed
 
---------------------------------------------------------------------------------
--- Tail, length, nil discrimination
---------------------------------------------------------------------------------
-
 theorem tl_nil :
   ∀A:U{i}. Tl([]) = [] ∈ List A
 proof
@@ -95,41 +120,8 @@ proof
   auto
 qed
 
-theorem len_nil :
-  Len([]) = 0 ∈ Int
-proof
-  eq
-qed
-
-theorem len_two :
-  Len([1, 2]) = 2 ∈ Int
-proof
-  eq
-qed
-
-theorem list_decide_nil :
-  ∀A:U{i}. ∀l:List A. l = [] ∈ List A ∨ ¬(l = [] ∈ List A)
-proof
-  intro A
-  intro l
-  elim 2 THENL [
-    left THEN eq,
-    right THEN intro p THEN elim 6
-  ]
-qed
-
-theorem nil_ne_cons :
-  ∀A:U{i}. ∀h:A. ∀t:List A. ¬([] = h :: t ∈ List A)
-proof
-  intro A
-  intro h
-  intro t
-  intro p
-  elim 4
-qed
-
 --------------------------------------------------------------------------------
--- Membership (`e on l over T` of §11.2)
+-- Membership (`On`) and Context Non-Repetition (`Unique`)
 --------------------------------------------------------------------------------
 
 theorem on_nil :
@@ -165,10 +157,6 @@ proof
   hyp
 qed
 
---------------------------------------------------------------------------------
--- Non-repetition
---------------------------------------------------------------------------------
-
 theorem unique_nil :
   ∀A:U{i}. Unique([]; A)
 proof
@@ -190,63 +178,100 @@ proof
 qed
 
 --------------------------------------------------------------------------------
--- Fold / “generalize to list” (Figure 11.3)
+-- Environments and Symbol Tables
 --------------------------------------------------------------------------------
 
--- The fold of Figure 11.3, specialised to integer sum (the book’s `sum`).
-theorem fold_sum_cons :
-  list_ind (1 :: 2 :: []) 0 (h, t, ih. h + ih) = 1 + list_ind (2 :: []) 0 (h, t, ih. h + ih) ∈ Int
+theorem lookup_empty :
+  ∀V:U{i}. ∀d:V. ∀x:Atom. Lookup(d; x; EmptyEnv) = d ∈ V
 proof
-  eq
-qed
-
-theorem sum_nil :
-  Sum([]) = 0 ∈ Int
-proof
-  eq
-qed
-
-theorem sum_three :
-  Sum([1, 2, 3]) = 6 ∈ Int
-proof
-  eq
-qed
-
---------------------------------------------------------------------------------
--- Append and map
---------------------------------------------------------------------------------
-
-theorem append_nil :
-  ∀A:U{i}. ∀ys:List A. Append([]; ys) = ys ∈ List A
-proof
-  intro A
-  intro ys
+  intro V
+  intro d
+  intro x
   auto
 qed
 
-theorem append_cons :
-  Append(1 :: []; 2 :: []) = 1 :: 2 :: [] ∈ List Int
+theorem lookup_hit_token :
+  ∀V:U{i}. ∀d:V. ∀v:V. ∀env:Env(V).
+    Lookup(d; "x"; Extend("x"; v; env)) = v ∈ V
+proof
+  intro V
+  intro d
+  intro v
+  intro env
+  auto
+qed
+
+theorem lookup_concrete :
+  Lookup(0; "y"; Extend("x"; 10; Extend("y"; 20; EmptyEnv))) = 20 ∈ Int
 proof
   auto
 qed
 
-theorem append_assoc_closed :
-  Append(Append(1 :: []; 2 :: []); 3 :: []) = Append(1 :: []; Append(2 :: []; 3 :: [])) ∈ List Int
+theorem lookup_default :
+  Lookup(0; "z"; Extend("x"; 10; Extend("y"; 20; EmptyEnv))) = 0 ∈ Int
 proof
-  eq THEN auto
+  auto
 qed
 
-theorem map_nil :
-  ∀A:U{i}. ∀B:U{i}. ∀f:(A → B). Map(f; []) = [] ∈ List B
+--------------------------------------------------------------------------------
+-- Higher-Order Combinators: Foldr and Filter
+--------------------------------------------------------------------------------
+
+theorem foldr_nil :
+  ∀A:U{i}. ∀B:U{i}. ∀f:(A → B → B). ∀z:B.
+    Foldr(f; z; []) = z ∈ B
 proof
   intro A
   intro B
   intro f
+  intro z
   auto
 qed
 
-theorem map_add1 :
-  Map((λn. n + 1); [0, 1]) = [1, 2] ∈ List Int
+theorem foldr_cons :
+  ∀A:U{i}. ∀B:U{i}. ∀f:(A → B → B). ∀z:B. ∀x:A. ∀xs:List A.
+    Foldr(f; z; x :: xs) = f x (Foldr(f; z; xs)) ∈ B
+proof
+  intro A
+  intro B
+  intro f
+  intro z
+  intro x
+  intro xs
+  auto
+qed
+
+theorem filter_nil :
+  ∀A:U{i}. ∀p:(A → (True ⊎ True)).
+    Filter(p; []) = [] ∈ List A
+proof
+  intro A
+  intro p
+  auto
+qed
+
+theorem filter_all :
+  ∀A:U{i}. ∀x:A. ∀xs:List A.
+    Filter((λy. inl Ax); x :: xs) = x :: Filter((λy. inl Ax); xs) ∈ List A
+proof
+  intro A
+  intro x
+  intro xs
+  auto
+qed
+
+theorem filter_none :
+  ∀A:U{i}. ∀x:A. ∀xs:List A.
+    Filter((λy. inr Ax); x :: xs) = Filter((λy. inr Ax); xs) ∈ List A
+proof
+  intro A
+  intro x
+  intro xs
+  auto
+qed
+
+theorem foldr_sum :
+  Foldr((λx. λacc. x + acc); 0; [1, 2, 3, 4]) = 10 ∈ Int
 proof
   auto
 qed

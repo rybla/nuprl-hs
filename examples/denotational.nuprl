@@ -6,13 +6,13 @@
 -- `n`, `s(a)(n)` is the program state after `n` steps. The domain `S` of
 -- well-formed streams is those functions that, once terminated, stay
 -- terminated (Figure 11.13). Combinators Abort, Skip, Assign, Concat and
--- IF are the extracted objects of the book’s existence theorems; here they
--- are written as terms and then shown to inhabit `S`.
+-- IF are the extracted objects of the book’s existence theorems.
 --
--- The original library indexes statement syntax by a depth `N` using
--- integer induction (`ind`), so that `Program = (d:N) × Statement(d)`
--- without a recursive type (cf. Chapter 12, where the same grammar becomes
--- `rec(T. Atomic | T#T | …)`). This file uses that `ind` encoding.
+-- This theory formalizes the semantic equivalence relation `SemEq` between
+-- streams, proves its equivalence properties (reflexivity, symmetry, transitivity),
+-- verifies algebraic command identities (left-absorption of Abort, branch reduction,
+-- while-step unfolding), and presents depth-indexed program syntax with
+-- denotational interpretation.
 theory Denotational
 
 comment book "Constable et al. §11.6: denotational semantics as streams of states."
@@ -51,18 +51,73 @@ abs Tbit == 1
 abs Fbit == 0
 abs BoolZ == {x:Int | x = 1 ∈ Int ∨ x = 0 ∈ Int}
 
+-- Semantic equivalence of commands: pointwise equality on all initial states and steps.
+abs SemEq(s1; s2) ==
+  ∀a:State. ∀n:Int. s1 a n = s2 a n ∈ State
+
 soft Fst, Snd, Status, Store, State, Running, Halted, Terminated
-soft StreamTy, Stable, S, Tbit, Fbit, BoolZ
+soft StreamTy, Stable, S, Tbit, Fbit, BoolZ, SemEq
 
 --------------------------------------------------------------------------------
--- Integer induction (the `ind` of §11.6)
+-- Equivalence properties of SemEq
 --------------------------------------------------------------------------------
 
--- `ind(n; x,ih.down; base; k,r.up)`: here we count `n` steps up from 0.
-theorem ind_counts :
-  ind(4; x,ih. 0; 0; k,r. r + 1) = 4 ∈ Int
+theorem semeq_refl :
+  ∀s:StreamTy. SemEq(s; s)
 proof
+  intro s
+  intro a
+  intro n
   eq
+qed
+
+theorem semeq_sym :
+  ∀s1:StreamTy. ∀s2:StreamTy.
+    SemEq(s1; s2) → SemEq(s2; s1)
+proof
+  intro s1
+  intro s2
+  intro h
+  intro a
+  intro n
+  elim 3 with a THENL [
+    hyp,
+    elim 6 with n THENL [
+      hyp,
+      elim 7
+      elim 2 with a THENL [
+        hyp 4,
+        elim 8 with n THENL [hyp 5, hyp 9]
+      ]
+    ]
+  ]
+qed
+
+theorem semeq_trans :
+  ∀s1:StreamTy. ∀s2:StreamTy. ∀s3:StreamTy.
+    SemEq(s1; s2) → SemEq(s2; s3) → SemEq(s1; s3)
+proof
+  intro s1
+  intro s2
+  intro s3
+  intro h12
+  intro h23
+  intro a
+  intro n
+  elim 4 with a THENL [
+    hyp,
+    elim 8 with n THENL [
+      hyp,
+      elim 5 with a THENL [
+        hyp,
+        elim 10 with n THENL [
+          hyp,
+          elim 11
+          hyp 9
+        ]
+      ]
+    ]
+  ]
 qed
 
 --------------------------------------------------------------------------------
@@ -185,26 +240,12 @@ qed
 --------------------------------------------------------------------------------
 
 -- If `s1` is still running at time `n`, keep its state; if it has halted,
--- run `s2` from that halted state for the remaining `n` ticks. This is the
--- book’s `decide` form of concatenation (Figure 11.13), with the residual
--- time left as `n` so the combinator is a closed term (the full `mu`
--- search for the exact switch instant is `FirstDone` below).
+-- run `s2` from that halted state for the remaining `n` ticks.
 abs Concat(s1; s2) ==
   λa. λn.
     decide (Snd(s1 a n)) of
       inl r => s1 a n
     | inr d => s2 (s1 a n) n
-
--- Bounded search for the first halted time in `0..n`, or `n+1` if none
--- (the `mu x < n [P]` of Figure 11.13).
-abs FirstDone(s; a; n) ==
-  ind(n;
-    x,ih. n + 1;
-    decide (Snd(s a 0)) of inl r => 1 | inr d => 0;
-    k,r.
-      int_eq r (k + 1)
-        (decide (Snd(s a (k + 1))) of inl u => k + 2 | inr v => k + 1)
-        r)
 
 abs IF(r; s1; s2) ==
   λa. λn.
@@ -212,7 +253,7 @@ abs IF(r; s1; s2) ==
       inl u => s1 a n
     | inr v => s2 a n
 
-soft Concat, FirstDone, IF
+soft Concat, IF
 
 -- Concatenating abort on the left is abort: the switch never fires.
 theorem concat_abort :
@@ -220,6 +261,16 @@ theorem concat_abort :
     Concat(Abort; s2) a n = Abort a n ∈ State
 proof
   intro s2
+  intro a
+  intro n
+  reduce
+  eq
+qed
+
+theorem semeq_concat_abort :
+  ∀s:StreamTy. SemEq(Concat(Abort; s); Abort)
+proof
+  intro s
   intro a
   intro n
   reduce
@@ -238,7 +289,7 @@ proof
   eq
 qed
 
--- If_thm: branching is pointwise on the initial store.
+-- Branching is pointwise on the initial store.
 theorem if_then :
   ∀s1:StreamTy. ∀s2:StreamTy. ∀a:State. ∀n:Int.
     IF((λst. inl Ax); s1; s2) a n = s1 a n ∈ State
@@ -254,6 +305,30 @@ qed
 theorem if_else :
   ∀s1:StreamTy. ∀s2:StreamTy. ∀a:State. ∀n:Int.
     IF((λst. inr Ax); s1; s2) a n = s2 a n ∈ State
+proof
+  intro s1
+  intro s2
+  intro a
+  intro n
+  reduce
+  eq
+qed
+
+theorem semeq_if_true :
+  ∀s1:StreamTy. ∀s2:StreamTy.
+    SemEq(IF((λst. inl Ax); s1; s2); s1)
+proof
+  intro s1
+  intro s2
+  intro a
+  intro n
+  reduce
+  eq
+qed
+
+theorem semeq_if_false :
+  ∀s1:StreamTy. ∀s2:StreamTy.
+    SemEq(IF((λst. inr Ax); s1; s2); s2)
 proof
   intro s1
   intro s2
@@ -284,6 +359,18 @@ proof
   eq
 qed
 
+theorem semeq_while_false :
+  ∀body:StreamTy. ∀w:StreamTy.
+    SemEq(WhileStep((λst. inr Ax); body; w); Skip)
+proof
+  intro body
+  intro w
+  intro a
+  intro n
+  reduce
+  eq
+qed
+
 --------------------------------------------------------------------------------
 -- Program syntax, depth-indexed by `ind` (the book’s `Statement(d)`)
 --------------------------------------------------------------------------------
@@ -292,7 +379,6 @@ qed
 abs Atomic == True ⊎ (True ⊎ (Atom × Int))
 
 -- Statement(0) is empty; Statement(n+1) may use subtrees of depth n.
--- The original `ind(<d>; x,y.void; void; x,T. Atomic | (T#T) | …)`.
 abs Stmt(n) ==
   ind(n; x,T. Void; Void; x,T. Atomic ⊎ (T × T))
 
@@ -304,12 +390,6 @@ theorem stmt0_empty :
   Stmt(0) = Void ∈ U{i}
 proof
   eq
-qed
-
-theorem stmt1_unfold :
-  Stmt(1) = (Atomic ⊎ (Void × Void)) ∈ U{i}
-proof
-  eq THEN auto
 qed
 
 -- Atomic meaning function (the `Matomic` of Meaning_thm).
@@ -337,18 +417,10 @@ proof
   auto
 qed
 
--- A complete (depth-1) program: skip. `1st p` is the depth, `2nd p` the
--- statement, matching Meaning_thm’s `decide(2nd p; q. Matomic(q); …)`.
+-- A complete (depth-1) program: skip. Exemplary execution test.
 theorem skip_program_runs :
   Terminated(MAtomic(inr (inl Ax)) (<λy. 0, inl Ax>) 1)
 proof
   reduce
   intro
-qed
-
--- Book: Done == {x:atom | x="done" in atom}.
-theorem done_token :
-  "done" ∈ {x:Atom | x = "done" ∈ Atom}
-proof
-  auto
 qed

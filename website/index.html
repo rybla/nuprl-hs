@@ -12,7 +12,7 @@
 <ul class="links"><li><a href="https://github.com/rybla/nuprl-hs">github.com/rybla/nuprl-hs</a></li><li><a href="https://nuprl-web.cs.cornell.edu/">Cornell PRL Project — Proof/Program Refinement Logic</a></li></ul>
 <h2 id="examples">Annotated examples</h2>
 <p>Each theory in <code>examples/</code> is checked by the kernel and rendered as an interactive document — statements and extracts first, then tactic scripts, refinement trees, and the analyses the CLI would print.</p>
-<p><a href="examples.html">Browse the examples</a> · 21 theories, 394 theorems.</p>
+<p><a href="examples.html">Browse the examples</a> · 21 theories, 358 theorems.</p>
 <h2 id="about">nuprl and nuprl-hs</h2>
 <p>The <a href="https://nuprl-web.cs.cornell.edu/html/NuprlSystem.html">original NuPRL system</a> is an X11 structured editor driven from an ML top loop. This port keeps the <em>logic</em> — sequents, primitive refinement rules, extracts, soft encodings, universe levels — and replaces the window system with a file-based proof language and a command-line interface.</p>
 <p>Computational type theory is a constructive foundation in the lineage of Martin-Löf: a proposition is a type, a proof is a program, and completing a refinement proof <em>extracts</em> that program. The kernel is a pure function from sequents to subgoals and extract combinators. Tactics search for kernel derivations; they are not part of the trusted computing base.</p>

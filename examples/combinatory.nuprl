@@ -2,10 +2,12 @@
 --
 -- The SKI basis is complete for the typed λ-calculus: `S`, `K`, and `I`
 -- inhabit the corresponding combinatory types, and `S K K` converts with `I`.
--- Church numerals are the polymorphic iterators
--- `⋂A:U{i}. (A → A) → A → A`; booleans are `⋂A:U{i}. A → A → A`. Evaluation
--- at `Int` recovers the intended arithmetic.
+-- This theory formalizes the core combinator algebra (SKI, B, CFlip, W),
+-- their typing and conversion identities, and polymorphic Church encodings
+-- for natural numbers, booleans, and pairs, along with algebraic laws.
 theory Combinatory
+
+comment book "Combinatory logic, SKI basis, and polymorphic Church encodings."
 
 abs I == λx. x
 abs K == λx. λy. x
@@ -45,7 +47,7 @@ soft CBool, CTrue, CFalse, CIf, CAnd, COr, CNot
 soft CPair, CFst, CSnd
 
 --------------------------------------------------------------------------------
--- SKI inhabit their types
+-- Combinator typing and conversion
 --------------------------------------------------------------------------------
 
 theorem i_ty :
@@ -94,6 +96,19 @@ proof
   elim 5 with x THENL [hyp, elim 4 with y THENL [hyp, hyp]]
 qed
 
+theorem w_ty :
+  ∀A:U{i}. ∀B:U{i}. (A → A → B) → A → B
+proof
+  intro A
+  intro B
+  intro f
+  intro x
+  elim 3 with x THENL [
+    hyp,
+    elim 5 with x THENL [hyp, hyp]
+  ]
+qed
+
 -- `S K K` converts with `I`.
 theorem skk :
   ∀A:U{i}. S K K = I ∈ (A → A)
@@ -109,6 +124,46 @@ proof
   intro B
   intro x
   intro y
+  auto
+qed
+
+theorem b_red :
+  ∀A:U{i}. ∀B:U{i}. ∀C:U{i}. ∀f:(B → C). ∀g:(A → B). ∀x:A.
+    Bcomb f g x = f (g x) ∈ C
+proof
+  intro A
+  intro B
+  intro C
+  intro f
+  intro g
+  intro x
+  reduce
+  auto
+qed
+
+theorem cflip_red :
+  ∀A:U{i}. ∀B:U{i}. ∀C:U{i}. ∀f:(A → B → C). ∀x:B. ∀y:A.
+    CFlip f x y = f y x ∈ C
+proof
+  intro A
+  intro B
+  intro C
+  intro f
+  intro x
+  intro y
+  reduce
+  auto
+qed
+
+theorem w_red :
+  ∀A:U{i}. ∀B:U{i}. ∀f:(A → A → B). ∀x:A.
+    W f x = f x x ∈ B
+proof
+  intro A
+  intro B
+  intro f
+  intro x
+  reduce
   auto
 qed
 
@@ -134,30 +189,19 @@ proof
   auto
 qed
 
-theorem c0_int :
-  CToInt(C0) = 0 ∈ Int
+theorem csucc_c1 :
+  CSucc C1 ∈ CNat
 proof
-  eq
+  auto
 qed
 
-theorem c1_int :
-  CToInt(C1) = 1 ∈ Int
+theorem cplus_c1_c2 :
+  CPlus C1 C2 ∈ CNat
 proof
-  eq
+  auto
 qed
 
-theorem c2_int :
-  CToInt(C2) = 2 ∈ Int
-proof
-  eq
-qed
-
-theorem c3_int :
-  CToInt(C3) = 3 ∈ Int
-proof
-  eq
-qed
-
+-- Exemplary concrete evaluations
 theorem csucc_2 :
   CToInt(CSucc C2) = 3 ∈ Int
 proof
@@ -166,18 +210,6 @@ qed
 
 theorem cplus_2_3 :
   CToInt(CPlus C2 C3) = 5 ∈ Int
-proof
-  eq
-qed
-
-theorem cmult_2_3 :
-  CToInt(CMult C2 C3) = 6 ∈ Int
-proof
-  eq
-qed
-
-theorem cplus_0 :
-  CToInt(CPlus C0 C2) = 2 ∈ Int
 proof
   eq
 qed
@@ -198,38 +230,46 @@ proof
   auto
 qed
 
-theorem cif_true :
+theorem cif_true_poly :
+  ∀A:U{i}. ∀x:A. ∀y:A.
+    CIf(CTrue) x y = x ∈ A
+proof
+  intro A
+  intro x
+  intro y
+  reduce
+  auto
+qed
+
+theorem cif_false_poly :
+  ∀A:U{i}. ∀x:A. ∀y:A.
+    CIf(CFalse) x y = y ∈ A
+proof
+  intro A
+  intro x
+  intro y
+  reduce
+  auto
+qed
+
+theorem cand_true_l :
+  ∀b:CBool. CAnd(CTrue; b) = b ∈ CBool
+proof
+  intro b
+  reduce
+  auto
+qed
+
+theorem cnot_true :
+  CNot(CTrue) = CFalse ∈ CBool
+proof
+  reduce
+  auto
+qed
+
+-- Exemplary boolean test
+theorem cif_example :
   CIf(CTrue) 7 9 = 7 ∈ Int
-proof
-  eq
-qed
-
-theorem cif_false :
-  CIf(CFalse) 7 9 = 9 ∈ Int
-proof
-  eq
-qed
-
-theorem cand_tt :
-  CAnd(CTrue; CTrue) 1 0 = 1 ∈ Int
-proof
-  eq
-qed
-
-theorem cand_tf :
-  CAnd(CTrue; CFalse) 1 0 = 0 ∈ Int
-proof
-  eq
-qed
-
-theorem cor_ft :
-  COr(CFalse; CTrue) 1 0 = 1 ∈ Int
-proof
-  eq
-qed
-
-theorem cnot_t :
-  CNot(CTrue) 1 0 = 0 ∈ Int
 proof
   eq
 qed
@@ -238,19 +278,31 @@ qed
 -- Church pairs
 --------------------------------------------------------------------------------
 
-theorem cpair_fst :
-  CFst(CPair(3; 5)) = 3 ∈ Int
+theorem cpair_fst_poly :
+  ∀A:U{i}. ∀B:U{i}. ∀x:A. ∀y:B.
+    CFst(CPair(x; y)) = x ∈ A
 proof
-  eq
+  intro A
+  intro B
+  intro x
+  intro y
+  reduce
+  auto
 qed
 
-theorem cpair_snd :
-  CSnd(CPair(3; 5)) = 5 ∈ Int
+theorem cpair_snd_poly :
+  ∀A:U{i}. ∀B:U{i}. ∀x:A. ∀y:B.
+    CSnd(CPair(x; y)) = y ∈ B
 proof
-  eq
+  intro A
+  intro B
+  intro x
+  intro y
+  reduce
+  auto
 qed
 
--- A Church pair of Church numerals.
+-- Exemplary Church pair of numerals
 theorem cpair_nats :
   CToInt(CFst(CPair(C2; C3))) = 2 ∈ Int
 proof

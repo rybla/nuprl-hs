@@ -1,31 +1,16 @@
--- | Equality, membership, congruence, and atoms.
+-- | Equality, membership, congruence, Leibniz substitution, and discrimination.
 --
 -- `t ∈ A` is the soft encoding `t = t ∈ A`. Equality is proof-irrelevant
 -- (extracts are `Ax`). Elimination rewrites the conclusion; distinct
 -- canonical constructors have empty equality.
+-- This theory formalizes equivalence properties (refl, sym, trans),
+-- Leibniz substitution, function application congruence, product/coproduct
+-- congruence, constructor discrimination, and universe membership of equalities.
 theory Equality
 
 --------------------------------------------------------------------------------
 -- Reflexivity and membership
 --------------------------------------------------------------------------------
-
-theorem zero_in_int :
-  0 ∈ Int
-proof
-  eq
-qed
-
-theorem one_eq_one :
-  1 = 1 ∈ Int
-proof
-  eq
-qed
-
-theorem axiom_in_unit :
-  Ax ∈ Unit
-proof
-  eq
-qed
 
 theorem refl_at :
   ∀A:U{i}. ∀x:A. x = x ∈ A
@@ -44,7 +29,7 @@ proof
 qed
 
 --------------------------------------------------------------------------------
--- Symmetry, transitivity, substitution
+-- Symmetry, transitivity, and Leibniz substitution
 --------------------------------------------------------------------------------
 
 theorem eq_sym :
@@ -72,7 +57,7 @@ proof
   hyp
 qed
 
--- Leibniz: equal elements are interchangeable in a family of types.
+-- Leibniz: equal elements are interchangeable in any type family.
 theorem subst :
   ∀A:U{i}. ∀B:(A → U{i}). ∀x:A. ∀y:A. x = y ∈ A → B x → B y
 proof
@@ -87,7 +72,7 @@ proof
 qed
 
 --------------------------------------------------------------------------------
--- Congruence and η for Unit
+-- Congruence
 --------------------------------------------------------------------------------
 
 theorem eq_app :
@@ -101,6 +86,49 @@ proof
   intro y
   intro p
   elim 6 THEN auto
+qed
+
+theorem eq_pair :
+  ∀A:U{i}. ∀B:U{i}. ∀x1:A. ∀x2:A. ∀y1:B. ∀y2:B.
+    x1 = x2 ∈ A → y1 = y2 ∈ B → <x1, y1> = <x2, y2> ∈ A × B
+proof
+  intro A
+  intro B
+  intro x1
+  intro x2
+  intro y1
+  intro y2
+  intro px
+  intro py
+  elim 7
+  elim 8
+  auto
+qed
+
+theorem eq_inl :
+  ∀A:U{i}. ∀B:U{i}. ∀x1:A. ∀x2:A.
+    x1 = x2 ∈ A → inl x1 = inl x2 ∈ A ⊎ B
+proof
+  intro A
+  intro B
+  intro x1
+  intro x2
+  intro px
+  elim 5
+  auto
+qed
+
+theorem eq_inr :
+  ∀A:U{i}. ∀B:U{i}. ∀y1:B. ∀y2:B.
+    y1 = y2 ∈ B → inr y1 = inr y2 ∈ A ⊎ B
+proof
+  intro A
+  intro B
+  intro y1
+  intro y2
+  intro py
+  elim 5
+  auto
 qed
 
 theorem unit_eta :
@@ -132,39 +160,11 @@ proof
   elim 1
 qed
 
---------------------------------------------------------------------------------
--- Atoms
---------------------------------------------------------------------------------
-
-theorem token_in_atom :
-  "done" ∈ Atom
-proof
-  eq
-qed
-
-theorem token_eq :
-  "done" = "done" ∈ Atom
-proof
-  eq
-qed
-
 theorem token_neq :
   ¬("yes" = "no" ∈ Atom)
 proof
   intro p
   elim 1
-qed
-
-theorem atom_eq_true :
-  atom_eq "a" "a" 1 0 = 1 ∈ Int
-proof
-  eq
-qed
-
-theorem atom_eq_false :
-  atom_eq "a" "b" 1 0 = 0 ∈ Int
-proof
-  eq
 qed
 
 --------------------------------------------------------------------------------
@@ -176,12 +176,6 @@ theorem type_in_univ :
 proof
   intro A
   hyp
-qed
-
-theorem int_in_univ :
-  Int ∈ U{1}
-proof
-  eq
 qed
 
 theorem eq_in_univ :

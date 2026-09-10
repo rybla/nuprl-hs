@@ -3,12 +3,13 @@
 -- Formulas are indexed by a depth `n`, as `Statement(n)` is in the
 -- denotational example (Constable et al. §11.6): `Fml(0)` is empty, and
 -- `Fml(n+1)` may mention subformulas of depth `n`. Atoms, conjunction,
--- implication and negation are the four constructors. A valuation
--- `v : Atom → U{i}` interprets a formula as a type; each ND rule is a
--- combinator on those types (soundness).
+-- implication, disjunction, and negation are constructors.
+-- A valuation `v : Atom → U{i}` interprets an object formula as a type;
+-- each ND rule is a combinator on those types, establishing soundness.
+-- Formula validity `Valid2` quantifies over all valuations.
 theory ND
 
-comment book "Depth-indexed object syntax, in the style of Constable et al. §11.6."
+comment book "Depth-indexed object syntax and natural deduction soundness, Constable et al. §11.6."
 
 abs Fst(p) == let <u, v> = p in u
 abs Snd(p) == let <u, v> = p in v
@@ -21,34 +22,7 @@ abs Snd(p) == let <u, v> = p in v
 abs Fml(n) ==
   ind(n; x,T. Void; Void; x,T. Atom ⊎ ((T × T) ⊎ ((T × T) ⊎ T)))
 
-soft Fst, Snd, Fml
-
---------------------------------------------------------------------------------
--- Depth 0 is empty; depth 1 is atoms
---------------------------------------------------------------------------------
-
-theorem fml0_empty :
-  Fml(0) = Void ∈ U{i}
-proof
-  eq
-qed
-
-theorem fml1_unfold :
-  Fml(1) = (Atom ⊎ ((Void × Void) ⊎ ((Void × Void) ⊎ Void))) ∈ U{i}
-proof
-  eq THEN auto
-qed
-
-theorem atom_is_fml1 :
-  inl "P" ∈ Fml(1)
-proof
-  auto
-qed
-
---------------------------------------------------------------------------------
--- Interpretation at depth 1 (atoms) and depth 2 (one connective)
---------------------------------------------------------------------------------
-
+-- Interpretations at depth 1 (atoms) and depth 2 (one connective)
 abs Inter1(v; f) ==
   decide f of
     inl a => v a
@@ -65,12 +39,33 @@ abs Inter2(v; f) ==
             inl p => Inter1(v; Fst(p)) → Inter1(v; Snd(p))
           | inr n => ¬(Inter1(v; n))
 
-soft Inter1, Inter2
+-- Validity: truth under all atom valuations
+abs Valid2(f) == ∀v:(Atom → U{i}). Inter2(v; f)
 
--- A valuation that sends every atom to True.
+-- Canonical valuation sending every atom to True
 abs Vtrue == λa. True
 
-soft Vtrue
+soft Fst, Snd, Fml, Inter1, Inter2, Valid2, Vtrue
+
+--------------------------------------------------------------------------------
+-- Formula depth properties
+--------------------------------------------------------------------------------
+
+theorem fml0_empty :
+  Fml(0) = Void ∈ U{i}
+proof
+  eq
+qed
+
+theorem atom_is_fml1 :
+  inl "P" ∈ Fml(1)
+proof
+  auto
+qed
+
+--------------------------------------------------------------------------------
+-- Valuations and interpretations
+--------------------------------------------------------------------------------
 
 theorem inter1_atom :
   ∀v:(Atom → U{i}). ∀a:Atom. Inter1(v; inl a) = v a ∈ U{i}
@@ -88,10 +83,10 @@ proof
 qed
 
 --------------------------------------------------------------------------------
--- Soundness of ND combinators (on the interpreted types)
+-- Soundness of ND inference rules (on interpreted types)
 --------------------------------------------------------------------------------
 
--- Hypothesis / axiom: an assumption is a realizer.
+-- Hypothesis / assumption: an assumption realizes itself.
 theorem nd_hyp :
   ∀A:U{i}. A → A
 proof
@@ -100,7 +95,7 @@ proof
   hyp
 qed
 
--- ∧-introduction.
+-- ∧-introduction and eliminations
 theorem nd_and_i :
   ∀A:U{i}. ∀B:U{i}. A → B → A ∧ B
 proof
@@ -111,7 +106,6 @@ proof
   split THENL [hyp 3, hyp 4]
 qed
 
--- ∧-elimination.
 theorem nd_and_e1 :
   ∀A:U{i}. ∀B:U{i}. A ∧ B → A
 proof
@@ -132,7 +126,43 @@ proof
   hyp
 qed
 
--- →-introduction is λ-abstraction; →-elimination is application.
+-- ∨-introductions and elimination (case analysis)
+theorem nd_or_i1 :
+  ∀A:U{i}. ∀B:U{i}. A → A ∨ B
+proof
+  intro A
+  intro B
+  intro a
+  left
+  hyp
+qed
+
+theorem nd_or_i2 :
+  ∀A:U{i}. ∀B:U{i}. B → A ∨ B
+proof
+  intro A
+  intro B
+  intro b
+  right
+  hyp
+qed
+
+theorem nd_or_e :
+  ∀A:U{i}. ∀B:U{i}. ∀C:U{i}. (A ∨ B) → (A → C) → (B → C) → C
+proof
+  intro A
+  intro B
+  intro C
+  intro ab
+  intro ac
+  intro bc
+  elim 4 THENL [
+    elim 5 with u THENL [hyp, hyp],
+    elim 6 with v THENL [hyp, hyp]
+  ]
+qed
+
+-- →-introduction and elimination (modus ponens)
 theorem nd_imp_i :
   ∀A:U{i}. ∀B:U{i}. (A → B) → (A → B)
 proof
@@ -152,7 +182,7 @@ proof
   elim 3 with x THENL [hyp, hyp]
 qed
 
--- ¬-introduction / explosion.
+-- ¬-introduction and explosion (ex falso quodlibet)
 theorem nd_not_i :
   ∀A:U{i}. (A → False) → ¬A
 proof
@@ -169,35 +199,8 @@ proof
   elim 2
 qed
 
--- K and S, the Hilbert-style basis, as ND derivations.
-theorem nd_k :
-  ∀A:U{i}. ∀B:U{i}. A → B → A
-proof
-  intro A
-  intro B
-  intro x
-  intro y
-  hyp 3
-qed
-
-theorem nd_s :
-  ∀A:U{i}. ∀B:U{i}. ∀C:U{i}.
-    (A → B → C) → (A → B) → A → C
-proof
-  intro A
-  intro B
-  intro C
-  intro f
-  intro g
-  intro x
-  elim 5 with x THENL [
-    hyp,
-    elim 4 with x THENL [hyp, elim 8 with y THENL [hyp, hyp]]
-  ]
-qed
-
 --------------------------------------------------------------------------------
--- Soundness at depth 2: ∧-intro of two atoms
+-- Soundness of object-level connectives at depth 2
 --------------------------------------------------------------------------------
 
 theorem and_intro_sound :
@@ -227,7 +230,22 @@ proof
   hyp
 qed
 
--- A complete ND derivation of `P → P` at depth 2, under `Vtrue`.
+--------------------------------------------------------------------------------
+-- Validity of object logic tautologies
+--------------------------------------------------------------------------------
+
+-- For any atom `a`, the implication `a → a` is valid across all valuations.
+theorem valid_id :
+  ∀a:Atom. Valid2(inr (inr (inl (<inl a, inl a>))))
+proof
+  intro a
+  intro v
+  reduce
+  intro x
+  hyp
+qed
+
+-- Exemplary ND derivation of `P → P` at depth 2 under `Vtrue`.
 theorem identity_derivation :
   Inter2(Vtrue; inr (inr (inl (<inl "P", inl "P">))))
 proof

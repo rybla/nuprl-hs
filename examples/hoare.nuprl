@@ -1,11 +1,11 @@
 -- | Hoare logic over the streams-of-states model of `denotational.nuprl`
 -- (Constable et al. §11.6).
 --
--- A Hoare triple `{P} s {Q}` means: from any initial state satisfying `P`,
+-- A Hoare triple `{p} s {q}` means: from any initial state satisfying `p`,
 -- if the stream `s` has terminated by time `n`, then the store at that time
--- satisfies `Q`. Skip, assignment, sequential composition with Skip, and
--- the conditional are proved sound for this interpretation. Consequence
--- is just implication of assertions.
+-- satisfies `q`. Structural rules include skip, precondition strengthening,
+-- postcondition weakening, false precondition, conjunction of postconditions,
+-- disjunction of preconditions, and the backward assignment axiom.
 theory Hoare
 
 comment book "Hoare triples over the stream-of-states model, Constable et al. §11.6."
@@ -35,58 +35,251 @@ abs IF(r; s1; s2) ==
       inl u => s1 a n
     | inr v => s2 a n
 
--- Partial correctness: P holds of the initial store, and if the stream
--- has halted by time n then Q holds of the store then.
-abs Hoare(P; s; Q) ==
+-- Partial correctness: p holds of the initial store, and if the stream
+-- has halted by time n then q holds of the store then.
+abs Hoare(p; s; q) ==
   ∀a:State. ∀n:Int.
-    P (Fst(a)) → Terminated(s a n) → Q (Fst(s a n))
+    p (Fst(a)) → Terminated(s a n) → q (Fst(s a n))
 
 soft Fst, Snd, Store, State, Running, Halted, Terminated, StreamTy
 soft Abort, Skip, Update, Assign, Concat, IF, Hoare
 
 --------------------------------------------------------------------------------
--- Skip: `{P} skip {P}`
+-- Store projection
 --------------------------------------------------------------------------------
 
-theorem skip_hoare :
-  ∀P:(Store → U{i}). ∀a:State. ∀n:Int.
-    P (Fst(a)) → Terminated(Skip a n) → P (Fst(Skip a n))
+theorem fst_store :
+  ∀a:State. Fst(a) ∈ Store
 proof
-  intro P
+  intro a
+  elim 1
+  auto
+qed
+
+theorem app_state :
+  ∀s:(State → Int → State). ∀a:State. ∀n:Int.
+    Fst(s a n) ∈ Store
+proof
+  intro s
   intro a
   intro n
-  intro pP
+  elim 1 with a THENL [
+    hyp,
+    elim 4 with n THENL [
+      hyp,
+      lemma fst_store [y1] THEN hyp
+    ]
+  ]
+qed
+
+--------------------------------------------------------------------------------
+-- Structural rules of Hoare logic
+--------------------------------------------------------------------------------
+
+-- Skip: `{p} skip {p}`
+theorem hoare_skip :
+  ∀p:(Store → U{i}). Hoare(p; Skip; p)
+proof
+  intro p
+  intro a
+  intro n
+  intro pp
   intro t
   hyp
 qed
 
---------------------------------------------------------------------------------
--- Assignment: `{Q[v/x]} x := v {Q}`
---------------------------------------------------------------------------------
-
--- After `x := 7`, the store at `"x"` is 7. The Hoare postcondition is
--- that fact, with precondition `True`.
-theorem assign_x_7 :
-  ∀a:State. ∀n:Int.
-    Terminated(Assign("x"; 7) a n) →
-    Fst(Assign("x"; 7) a n) "x" = 7 ∈ Int
+-- Vacuous truth from false precondition: `{False} s {q}`
+theorem hoare_false :
+  ∀q:(Store → U{i}). ∀s:StreamTy.
+    Hoare((λst. False); s; q)
 proof
+  intro q
+  intro s
   intro a
   intro n
-  intro t
-  reduce
-  eq
+  intro pVoid
+  elim 5
 qed
 
-theorem assign_lookup :
-  Fst(Assign("x"; 7) (<λy. 0, inl Ax>) 0) "x" = 7 ∈ Int
+-- Precondition strengthening: (p ⇒ p') → {p'} s {q} → {p} s {q}
+theorem hoare_pre :
+  ∀p:(Store → U{i}). ∀p':(Store → U{i}).
+  ∀q:(Store → U{i}). ∀s:StreamTy.
+    (∀st:Store. p st → p' st) →
+    Hoare(p'; s; q) →
+    Hoare(p; s; q)
 proof
-  reduce
-  eq
+  intro p
+  intro p'
+  intro q
+  intro s
+  intro pre_imp
+  intro h_spec
+  intro a
+  intro n
+  intro pp
+  intro term
+  lemma fst_store [a]
+  elim 5 with (Fst(a)) THENL [
+    hyp,
+    elim 12 with pp THENL [
+      hyp,
+      elim 6 with a THENL [
+        hyp,
+        elim 14 with n THENL [
+          hyp,
+          elim 15 with y1 THENL [
+            hyp,
+            elim 16 with term THENL [hyp, hyp]
+          ]
+        ]
+      ]
+    ]
+  ]
+qed
+
+-- Postcondition weakening: (q' ⇒ q) → {p} s {q'} → {p} s {q}
+theorem hoare_post :
+  ∀p:(Store → U{i}). ∀q':(Store → U{i}).
+  ∀q:(Store → U{i}). ∀s:StreamTy.
+    (∀st:Store. q' st → q st) →
+    Hoare(p; s; q') →
+    Hoare(p; s; q)
+proof
+  intro p
+  intro q'
+  intro q
+  intro s
+  intro post_imp
+  intro h_spec
+  intro a
+  intro n
+  intro pp
+  intro term
+  lemma app_state [s, a, n]
+  elim 6 with a THENL [
+    hyp,
+    elim 12 with n THENL [
+      hyp,
+      elim 13 with pp THENL [
+        hyp,
+        elim 14 with term THENL [
+          hyp,
+          elim 5 with (Fst(s a n)) THENL [
+            hyp 11,
+            elim 16 with y3 THENL [hyp 15, hyp]
+          ]
+        ]
+      ]
+    ]
+  ]
+qed
+
+-- Conjunction of postconditions: {p} s {q1} → {p} s {q2} → {p} s {q1 ∧ q2}
+theorem hoare_and_post :
+  ∀p:(Store → U{i}). ∀q1:(Store → U{i}). ∀q2:(Store → U{i}).
+  ∀s:StreamTy.
+    Hoare(p; s; q1) →
+    Hoare(p; s; q2) →
+    Hoare(p; s; (λst. q1 st ∧ q2 st))
+proof
+  intro p
+  intro q1
+  intro q2
+  intro s
+  intro h1
+  intro h2
+  intro a
+  intro n
+  intro pp
+  intro term
+  split THENL [
+    elim 5 with a THENL [
+      hyp,
+      elim 11 with n THENL [
+        hyp,
+        elim 12 with pp THENL [
+          hyp,
+          elim 13 with term THENL [hyp, hyp]
+        ]
+      ]
+    ],
+    elim 6 with a THENL [
+      hyp,
+      elim 11 with n THENL [
+        hyp,
+        elim 12 with pp THENL [
+          hyp,
+          elim 13 with term THENL [hyp, hyp]
+        ]
+      ]
+    ]
+  ]
+qed
+
+-- Disjunction of preconditions: {p1} s {q} → {p2} s {q} → {p1 ∨ p2} s {q}
+theorem hoare_or_pre :
+  ∀p1:(Store → U{i}). ∀p2:(Store → U{i}).
+  ∀q:(Store → U{i}). ∀s:StreamTy.
+    Hoare(p1; s; q) →
+    Hoare(p2; s; q) →
+    Hoare((λst. p1 st ∨ p2 st); s; q)
+proof
+  intro p1
+  intro p2
+  intro q
+  intro s
+  intro h1
+  intro h2
+  intro a
+  intro n
+  intro por
+  intro term
+  elim 9 THENL [
+    elim 5 with a THENL [
+      hyp,
+      elim 12 with n THENL [
+        hyp,
+        elim 13 with u THENL [
+          hyp,
+          elim 14 with term THENL [hyp, hyp]
+        ]
+      ]
+    ],
+    elim 6 with a THENL [
+      hyp,
+      elim 12 with n THENL [
+        hyp,
+        elim 13 with v THENL [
+          hyp,
+          elim 14 with term THENL [hyp, hyp]
+        ]
+      ]
+    ]
+  ]
 qed
 
 --------------------------------------------------------------------------------
--- Sequential composition with Skip on the left is the right component
+-- Assignment rule
+--------------------------------------------------------------------------------
+
+-- Hoare's backward assignment axiom: `{λs. q (Update(s; x; v))} x := v {q}`
+theorem hoare_assign :
+  ∀q:(Store → U{i}). ∀v:Int.
+    Hoare((λs. q (Update(s; "x"; v))); Assign("x"; v); q)
+proof
+  intro q
+  intro v
+  intro a
+  intro n
+  intro pq
+  intro term
+  reduce
+  hyp
+qed
+
+--------------------------------------------------------------------------------
+-- Control flow properties
 --------------------------------------------------------------------------------
 
 -- Concatenating skip on the left switches immediately (the book’s Concat).
@@ -101,10 +294,7 @@ proof
   eq
 qed
 
---------------------------------------------------------------------------------
--- Conditional: `{P} IF true THEN s1 ELSE s2 {Q}` reduces to `{P} s1 {Q}`
---------------------------------------------------------------------------------
-
+-- Conditional: branches pointwise on the initial store.
 theorem if_then :
   ∀s1:StreamTy. ∀s2:StreamTy. ∀a:State. ∀n:Int.
     IF((λst. inl Ax); s1; s2) a n = s1 a n ∈ State
@@ -129,10 +319,7 @@ proof
   eq
 qed
 
---------------------------------------------------------------------------------
--- Abort never satisfies a terminating postcondition of True
---------------------------------------------------------------------------------
-
+-- Abort never terminates.
 theorem abort_not_terminated :
   ∀a:State. ∀n:Int. ¬Terminated(Abort a n)
 proof
@@ -141,4 +328,20 @@ proof
   reduce
   intro p
   elim 3
+qed
+
+--------------------------------------------------------------------------------
+-- Exemplary verification: x := 7 establishes x = 7
+--------------------------------------------------------------------------------
+
+theorem verified_assign_x_7 :
+  ∀a:State. ∀n:Int.
+    Terminated(Assign("x"; 7) a n) →
+    Fst(Assign("x"; 7) a n) "x" = 7 ∈ Int
+proof
+  intro a
+  intro n
+  intro t
+  reduce
+  eq
 qed

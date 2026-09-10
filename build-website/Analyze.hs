@@ -52,11 +52,11 @@ data ExampleMeta = ExampleMeta
 exampleMetas :: [ExampleMeta]
 exampleMetas =
   [ ExampleMeta "core" "Core" "Logic encodings as named abstractions; True is Unit." Nothing
-  , ExampleMeta "functions" "Functions" "Combinators, products, coproducts, extensionality, universes, intersection." Nothing
+  , ExampleMeta "functions" "Functions" "Category of types and functions: composition laws, Fork/Case universal properties, currying isomorphism, extensionality." Nothing
   , ExampleMeta "logic" "Logic" "Intuitionistic predicate logic, De Morgan, quantifiers, and squash." Nothing
-  , ExampleMeta "equality" "Equality" "Reflexivity, symmetry, transitivity, Leibniz, atoms, constructor discrimination." Nothing
-  , ExampleMeta "integers" "Integers" "Closed arithmetic, comparison, decidability, and integer induction." Nothing
-  , ExampleMeta "lists" "Lists" "Nil, cons, the list recursor, append, and list_ind." Nothing
+  , ExampleMeta "equality" "Equality" "Reflexivity, symmetry, transitivity, Leibniz substitution, constructor congruences, and discrimination." Nothing
+  , ExampleMeta "integers" "Integers" "Discrete decidability, strict order decidability, sign splitting, and ternary integer induction." Nothing
+  , ExampleMeta "lists" "Lists" "Foundational list theory: constructors, discrimination, structural recursion, Map, Append, Length, and reduction equations." Nothing
   , ExampleMeta "classical" "Classical" "DNE and stability recovered from excluded middle." Nothing
   , ExampleMeta
       "cardinality"
@@ -66,7 +66,7 @@ exampleMetas =
   , ExampleMeta
       "denotational"
       "Denotational semantics"
-      "Streams of states; Abort, Skip, Assign, Concat, IF; depth-indexed syntax."
+      "Stream-of-states model, semantic equivalence (SemEq), algebraic command laws, and depth-indexed program syntax."
       (Just "Constable et al. §11.6")
   , ExampleMeta
       "intersection"
@@ -76,12 +76,12 @@ exampleMetas =
   , ExampleMeta
       "sets"
       "Sets"
-      "Set types {x:A | P}: comprehension, empty/full/singleton, Nat, Positive, Bool."
+      "Set types {x:A | P}: comprehension, subset preorder, empty/full/singleton, Nat, Positive, Bool."
       Nothing
   , ExampleMeta
       "quotients"
       "Quotients"
-      "Quotient types (x,y):A // E. Integers mod 2; successor respects ≡, max does not."
+      "Quotient types (x,y):A // E, the functionality principle, well-definedness, and counterexamples."
       (Just "Constable et al. §10.3")
   , ExampleMeta
       "choice"
@@ -91,7 +91,7 @@ exampleMetas =
   , ExampleMeta
       "cps"
       "CPS / double negation"
-      "Continuations as ¬¬; Kolmogorov translation; irrefutability of excluded middle."
+      "Continuation monad, algebraic laws, Kleisli composition, and constructive double-negation embedding."
       Nothing
   , ExampleMeta
       "existence"
@@ -101,32 +101,32 @@ exampleMetas =
   , ExampleMeta
       "nd"
       "Natural deduction"
-      "Depth-indexed propositional formulas and soundness of the ND combinators."
+      "Depth-indexed object logic, formula validity under all valuations, and soundness of natural deduction."
       Nothing
   , ExampleMeta
       "listprog"
       "Lists as programs"
-      "Head, tail, membership, non-repetition, fold, and append — Constable et al. §11.2."
+      "List programming, symbol tables / environments (EmptyEnv, Extend, Lookup), and higher-order combinators (Foldr, Filter)."
       (Just "Constable et al. §11.2")
   , ExampleMeta
       "combinatory"
       "Combinatory logic"
-      "SKI combinators and Church numerals, booleans, and pairs."
+      "SKI, B, CFlip, W combinator algebra, typing and reduction laws, and polymorphic Church encodings."
       Nothing
   , ExampleMeta
       "hoare"
       "Hoare logic"
-      "Partial-correctness triples over the stream-of-states model of §11.6."
+      "Sound structural rules of Hoare logic (Skip, Pre, Post, Conjunction, Disjunction, Assignment) over stream semantics."
       (Just "Constable et al. §11.6")
   , ExampleMeta
       "regular"
       "Regular sets"
-      "Union, concatenation, and star as predicates on words; Kleene identities."
+      "Regular expressions as languages over words, language containment preorder, mutual equivalence, and Kleene algebra."
       (Just "Constable et al. §11.4")
   , ExampleMeta
       "euclid"
       "Euclidean algorithm"
-      "Iterated remainder computes gcd on closed integers, with divisibility proofs."
+      "Verified Euclidean algorithm, structural step properties, common divisor specification, and coprimality."
       Nothing
   ]
 
