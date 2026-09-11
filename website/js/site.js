@@ -102,17 +102,6 @@
   });
 
   function all(sel, fn) { document.querySelectorAll(sel).forEach(fn); }
-  const expandProofs = document.getElementById('expand-proofs');
-  const collapseProofs = document.getElementById('collapse-proofs');
-  if (expandProofs) expandProofs.addEventListener('click', function () {
-    all('details.pnode', function (d) { d.open = true; });
-    all('details.panel.proof-panel', function (d) { d.open = true; });
-  });
-  if (collapseProofs) collapseProofs.addEventListener('click', function () {
-    all('details.pnode', function (d) { d.open = false; });
-    const roots = document.querySelectorAll('details.panel.proof-panel > .proof-tree > details.pnode');
-    roots.forEach(function (d) { d.open = true; });
-  });
   const expandAll = document.getElementById('expand-all');
   if (expandAll) expandAll.addEventListener('click', function () {
     all('details.panel', function (d) { d.open = true; });

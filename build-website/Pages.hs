@@ -350,9 +350,7 @@ splitParas = filter (not . T.null) . map T.strip . T.splitOn "\n\n"
 toolbar :: Html
 toolbar =
   el "div" [("class", "toolbar")] $
-    el "button" [("type", "button"), ("id", "expand-proofs")] (txt "Expand proofs")
-      <> el "button" [("type", "button"), ("id", "collapse-proofs")] (txt "Collapse proofs")
-      <> el "button" [("type", "button"), ("id", "expand-all")] (txt "Open all panels")
+    el "button" [("type", "button"), ("id", "expand-all")] (txt "Open all panels")
       <> voidEl "input" [("id", "filter"), ("type", "search"), ("placeholder", "Filter by name"), ("aria-label", "Filter objects by name")]
 
 toc :: AnnotatedExample -> Html

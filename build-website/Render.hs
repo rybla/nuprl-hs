@@ -639,36 +639,48 @@ comb s =
 
 renderProofH :: Library -> Proof -> Html
 renderProofH lib p =
-  el "div" [("class", "proof-tree")] (renderNode lib True rootAddr p)
+  el "div" [("class", "proof-tree")] (renderNode lib rootAddr p)
 
-renderNode :: Library -> Bool -> Addr -> Proof -> Html
-renderNode lib open addr = \case
+renderNode :: Library -> Addr -> Proof -> Html
+renderNode lib addr = \case
   Unrefined sq ->
     el "div" [("class", "pnode open-goal")] $
       el "div" [("class", "pnode-head")] (txt "open goal")
         <> renderSequentH lib sq
   Refined sq name cs _extr ->
     let kids = zip [0 ..] cs
-        summary =
-          el "span" [("class", "rule"), ("data-kind", "tactic"), ("data-note", explainRule name)] (txt name)
-            <> sp
-            <> el "span" [("class", "turnstile"), ("data-kind", "goal"), ("data-note", "The sequent turnstile: hypotheses above prove the conclusion.")] (txt "⊢")
-            <> sp
-            <> el "span" [("class", "pnode-concl")] (sub lib 0 (seqConcl sq))
-        extra =
-          renderSequentH lib sq
-            <> (if open then extractLine lib (Refined sq name cs _extr) else emptyH)
+        header =
+          el "div" [("class", "pnode-head")] $
+            el "span" [("class", "rule"), ("data-kind", "tactic"), ("data-note", explainRule name)] (txt name)
+              <> sp
+              <> el "span" [("class", "turnstile"), ("data-kind", "goal"), ("data-note", "The sequent turnstile: hypotheses above prove the conclusion.")] (txt "⊢")
+              <> sp
+              <> el "span" [("class", "pnode-concl")] (sub lib 0 (seqConcl sq))
+        body =
+          renderSequentHypsOnly lib sq
+            <> extractLine lib (Refined sq name cs _extr)
             <> ( if null kids
                    then emptyH
                    else
                      el "div" [("class", "subgoals")] $
                        mconcat
-                         [ renderNode lib False (extendAddr addr i) c
+                         [ renderNode lib (extendAddr addr i) c
                          | (i, c) <- kids
                          ]
                )
-        attrs = [("class", "pnode")] ++ [("open", "open") | open]
-     in el "details" attrs (el "summary" [] summary <> extra)
+     in el "div" [("class", "pnode")] (header <> body)
+
+-- | Render only the hypotheses of a sequent (the conclusion is already
+-- shown in the node header, so we avoid repeating it).
+renderSequentHypsOnly :: Library -> Sequent -> Html
+renderSequentHypsOnly lib sq
+  | null (seqHyps sq) = emptyH
+  | otherwise =
+      el "ol" [("class", "hyps")] $
+        mconcat
+          [ el "li" [("class", hypClass h), ("value", T.pack (show i))] (renderHyp lib i h)
+          | (i, h) <- zip [1 ..] (seqHyps sq)
+          ]
 
 extractLine :: Library -> Proof -> Html
 extractLine lib p =
