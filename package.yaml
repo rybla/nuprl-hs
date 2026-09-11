@@ -48,6 +48,7 @@ ghc-options:
   - -Wmissing-home-modules
   - -Wpartial-fields
   - -Wredundant-constraints
+  - -optP-Wno-nonportable-include-path
 
 default-extensions:
   - DerivingStrategies
@@ -123,7 +124,8 @@ tests:
     ghc-options:
       - -threaded
       - -rtsopts
-      - -with-rtsopts=-N
+      - '"-with-rtsopts=-N -s -M1000m"'
+
     dependencies:
       - nuprl-hs
       - tasty >= 1.5
