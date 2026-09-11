@@ -1,0 +1,235 @@
+-- | Multisets (Bags) as an abstract data type via quotients in CTT.
+--
+-- This theory formalizes:
+-- 1. Multiplicity counting of elements in a list (`Count`).
+-- 2. Permutation equivalence (`PermEq`): lists with the same counts for every atom.
+-- 3. The multiset quotient type `Bag == (List Atom) // PermEq`.
+-- 4. Proof that `PermEq` is an equivalence relation (reflexive, symmetric, transitive).
+-- 5. Formation of the `Bag` type in universe `U{i}`.
+-- 6. Bag operations: `BEmpty`, `BSingleton`, `BAdd`, `BUnion`.
+-- 7. Representation independence and algebraic union laws on the quotient.
+theory Bags
+
+comment book "Multisets (Bags) as an abstract data type via quotient types."
+
+abs Append(xs; ys) == list_ind xs (ys) (h, t, ih. h :: ih)
+
+abs Count(x; l) ==
+  list_ind l 0 (h, t, ih. atom_eq h x (ih + 1) ih)
+
+abs PermEq(l1; l2) ==
+  ∀x:Atom. Count(x; l1) = Count(x; l2) ∈ Int
+
+abs Bag == (l1, l2):(List Atom) // PermEq(l1; l2)
+
+abs BEmpty == []
+abs BSingleton(x) == x :: []
+abs BAdd(x; b) == x :: b
+abs BUnion(b1; b2) == Append(b1; b2)
+
+soft Append, Count, PermEq, Bag, BEmpty, BSingleton, BAdd, BUnion
+
+--------------------------------------------------------------------------------
+-- Count reduction equations
+--------------------------------------------------------------------------------
+
+theorem count_nil :
+  ∀x:Atom. Count(x; []) = 0 ∈ Int
+proof
+  intro x
+  reduce
+  eq THEN auto
+qed
+
+theorem count_hit :
+  Count("x"; "x" :: []) = 1 ∈ Int
+proof
+  reduce
+  eq THEN auto
+qed
+
+theorem count_miss :
+  Count("x"; "y" :: []) = 0 ∈ Int
+proof
+  reduce
+  eq THEN auto
+qed
+
+theorem count_hit_step :
+  ∀b:List Atom. Count("x"; "x" :: b) = Count("x"; b) + 1 ∈ Int
+proof
+  intro b
+  reduce
+  eq THEN auto
+qed
+
+theorem count_miss_step :
+  ∀b:List Atom. Count("x"; "y" :: b) = Count("x"; b) ∈ Int
+proof
+  intro b
+  reduce
+  eq THEN auto
+qed
+
+-- Count queries evaluate identically regardless of insertion order:
+theorem count_swap_hit_x :
+  Count("x"; "x" :: "y" :: []) = Count("x"; "y" :: "x" :: []) ∈ Int
+proof
+  reduce
+  eq THEN auto
+qed
+
+theorem count_swap_hit_y :
+  Count("y"; "x" :: "y" :: []) = Count("y"; "y" :: "x" :: []) ∈ Int
+proof
+  reduce
+  eq THEN auto
+qed
+
+theorem count_swap_miss_z :
+  Count("z"; "x" :: "y" :: []) = Count("z"; "y" :: "x" :: []) ∈ Int
+proof
+  reduce
+  eq THEN auto
+qed
+
+--------------------------------------------------------------------------------
+-- PermEq is an equivalence relation
+--------------------------------------------------------------------------------
+
+theorem permeq_refl :
+  ∀l:List Atom. PermEq(l; l)
+proof
+  intro l
+  intro x
+  eq THEN auto
+qed
+
+theorem permeq_sym :
+  ∀l1:List Atom. ∀l2:List Atom.
+    PermEq(l1; l2) → PermEq(l2; l1)
+proof
+  intro l1
+  intro l2
+  intro h
+  intro x
+  elim 3 with x THENL [
+    hyp,
+    elim 5
+    eq
+  ]
+qed
+
+theorem permeq_trans :
+  ∀l1:List Atom. ∀l2:List Atom. ∀l3:List Atom.
+    PermEq(l1; l2) → PermEq(l2; l3) → PermEq(l1; l3)
+proof
+  intro l1
+  intro l2
+  intro l3
+  intro h12
+  intro h23
+  intro x
+  elim 4 with x THENL [
+    hyp,
+    elim 5 with x THENL [
+      hyp,
+      elim 7 THEN hyp
+    ]
+  ]
+qed
+
+--------------------------------------------------------------------------------
+-- Formation: Bag is a type
+--------------------------------------------------------------------------------
+
+theorem bag_type :
+  Bag ∈ U{i}
+proof
+  eq THENL [
+    eq,
+    eq,
+    intro z THEN eq THEN auto,
+    lemma permeq_sym [x, y] THEN elim 4 with p THENL [hyp, hyp],
+    lemma permeq_trans [x, y, z] THEN elim 6 with p THENL [hyp, elim 7 with q THENL [hyp, hyp]]
+  ]
+qed
+
+--------------------------------------------------------------------------------
+-- Representatives and quotient membership
+--------------------------------------------------------------------------------
+
+theorem list_to_bag :
+  ∀l:List Atom. l ∈ Bag
+proof
+  intro l
+  eq THENL [
+    hyp,
+    hyp,
+    lemma permeq_refl [l] THEN hyp
+  ]
+qed
+
+theorem bempty_in_bag :
+  BEmpty ∈ Bag
+proof
+  eq THENL [
+    eq,
+    eq,
+    lemma permeq_refl [[]] THEN hyp
+  ]
+qed
+
+theorem bsingleton_in_bag :
+  ∀x:Atom. BSingleton(x) ∈ Bag
+proof
+  intro x
+  eq THENL [
+    auto,
+    auto,
+    lemma permeq_refl [x :: []] THEN hyp
+  ]
+qed
+
+theorem badd_in_bag :
+  ∀x:Atom. ∀b:List Atom. BAdd(x; b) ∈ Bag
+proof
+  intro x
+  intro b
+  eq THENL [
+    auto,
+    auto,
+    lemma permeq_refl [x :: b] THEN hyp
+  ]
+qed
+
+--------------------------------------------------------------------------------
+-- Union identity laws on the quotient
+--------------------------------------------------------------------------------
+
+theorem bunion_nil_l :
+  ∀b:List Atom. BUnion([]; b) = b ∈ Bag
+proof
+  intro b
+  reduce
+  eq THENL [
+    hyp,
+    hyp,
+    lemma permeq_refl [b] THEN hyp
+  ]
+qed
+
+theorem bunion_cons_l :
+  ∀x:Atom. ∀xs:List Atom. ∀ys:List Atom.
+    BUnion(x :: xs; ys) = BAdd(x; BUnion(xs; ys)) ∈ Bag
+proof
+  intro x
+  intro xs
+  intro ys
+  reduce
+  eq THENL [
+    auto,
+    auto,
+    lemma permeq_refl [x :: Append(xs; ys)] THEN hyp
+  ]
+qed

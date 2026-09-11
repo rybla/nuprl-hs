@@ -1,0 +1,235 @@
+-- | Abstract interpretation: sign domain, concretization, and sound operations.
+--
+-- This theory formalizes:
+-- 1. An abstract domain `Sign` with elements `SPos`, `SZero`, `SNeg`, and `STop`.
+-- 2. Concretization relation `Gamma(s; n)` linking abstract signs to integer values.
+-- 3. Abstract operations `NegSign(s)` and `MulSign(s1; s2)`.
+-- 4. Soundness and algebraic properties of abstract operations.
+theory AbstractInterp
+
+comment book "Abstract interpretation: sign analysis domain, concretization, and sound operations."
+
+-- Abstract sign domain:
+-- SPos:  positive (> 0)
+-- SZero: zero (= 0)
+-- SNeg:  negative (< 0)
+-- STop:  any integer (top element)
+abs Sign == (Unit ⊎ Unit) ⊎ (Unit ⊎ Unit)
+abs SPos == inl (inl Ax)
+abs SZero == inl (inr Ax)
+abs SNeg == inr (inl Ax)
+abs STop == inr (inr Ax)
+
+-- Concretization: does integer n satisfy abstract sign s?
+abs Gamma(s; n) ==
+  decide s of
+    inl l => (decide l of inl u => 0 < n | inr u => n = 0 ∈ Int)
+  | inr r => (decide r of inl u => n < 0 | inr u => True)
+
+-- Abstract negation:
+abs NegSign(s) ==
+  decide s of
+    inl l => (decide l of inl u => SNeg | inr u => SZero)
+  | inr r => (decide r of inl u => SPos | inr u => STop)
+
+-- Abstract multiplication:
+abs MulSign(s1; s2) ==
+  decide s1 of
+    inl l1 =>
+      (decide l1 of
+         inl u1 =>
+           (decide s2 of
+              inl l2 => (decide l2 of inl u2 => SPos | inr u2 => SZero)
+            | inr r2 => (decide r2 of inl u2 => SNeg | inr u2 => STop))
+       | inr u1 => SZero)
+  | inr r1 =>
+      (decide r1 of
+         inl u1 =>
+           (decide s2 of
+              inl l2 => (decide l2 of inl u2 => SNeg | inr u2 => SZero)
+            | inr r2 => (decide r2 of inl u2 => SPos | inr u2 => STop))
+       | inr u1 =>
+           (decide s2 of
+              inl l2 => (decide l2 of inl u2 => STop | inr u2 => SZero)
+            | inr r2 => STop))
+
+soft Sign, SPos, SZero, SNeg, STop, Gamma, NegSign, MulSign
+
+--------------------------------------------------------------------------------
+-- Domain membership
+--------------------------------------------------------------------------------
+
+theorem spos_member : SPos ∈ Sign
+proof
+  auto
+qed
+
+theorem szero_member : SZero ∈ Sign
+proof
+  auto
+qed
+
+theorem sneg_member : SNeg ∈ Sign
+proof
+  auto
+qed
+
+theorem stop_member : STop ∈ Sign
+proof
+  auto
+qed
+
+--------------------------------------------------------------------------------
+-- Concretization properties
+--------------------------------------------------------------------------------
+
+theorem gamma_pos :
+  ∀n:Int. 0 < n → Gamma(SPos; n)
+proof
+  intro n
+  intro h
+  reduce
+  hyp
+qed
+
+theorem gamma_zero :
+  Gamma(SZero; 0)
+proof
+  reduce
+  eq
+qed
+
+theorem gamma_neg :
+  ∀n:Int. n < 0 → Gamma(SNeg; n)
+proof
+  intro n
+  intro h
+  reduce
+  hyp
+qed
+
+theorem gamma_top_all :
+  ∀n:Int. Gamma(STop; n)
+proof
+  intro n
+  reduce
+  auto
+qed
+
+theorem gamma_top_sound :
+  ∀s:Sign. ∀n:Int. Gamma(s; n) → Gamma(STop; n)
+proof
+  intro s
+  intro n
+  intro h
+  reduce
+  auto
+qed
+
+--------------------------------------------------------------------------------
+-- Abstract negation
+--------------------------------------------------------------------------------
+
+theorem neg_pos : NegSign(SPos) = SNeg ∈ Sign
+proof
+  reduce
+  auto
+qed
+
+theorem neg_zero : NegSign(SZero) = SZero ∈ Sign
+proof
+  reduce
+  auto
+qed
+
+theorem neg_neg : NegSign(SNeg) = SPos ∈ Sign
+proof
+  reduce
+  auto
+qed
+
+theorem neg_top : NegSign(STop) = STop ∈ Sign
+proof
+  reduce
+  auto
+qed
+
+theorem neg_involutive :
+  ∀s:Sign. NegSign(NegSign(s)) = s ∈ Sign
+proof
+  intro s
+  elim 1 THENL [
+    elim 2 THENL [
+      reduce THEN auto,
+      reduce THEN auto
+    ],
+    elim 2 THENL [
+      reduce THEN auto,
+      reduce THEN auto
+    ]
+  ]
+qed
+
+--------------------------------------------------------------------------------
+-- Abstract multiplication
+--------------------------------------------------------------------------------
+
+theorem mul_zero_l :
+  ∀s:Sign. MulSign(SZero; s) = SZero ∈ Sign
+proof
+  intro s
+  reduce
+  auto
+qed
+
+theorem mul_zero_r :
+  ∀s:Sign. MulSign(s; SZero) = SZero ∈ Sign
+proof
+  intro s
+  elim 1 THENL [
+    elim 2 THENL [
+      reduce THEN auto,
+      reduce THEN auto
+    ],
+    elim 2 THENL [
+      reduce THEN auto,
+      reduce THEN auto
+    ]
+  ]
+qed
+
+theorem mul_pos_pos : MulSign(SPos; SPos) = SPos ∈ Sign
+proof
+  reduce
+  auto
+qed
+
+theorem mul_pos_neg : MulSign(SPos; SNeg) = SNeg ∈ Sign
+proof
+  reduce
+  auto
+qed
+
+theorem mul_neg_pos : MulSign(SNeg; SPos) = SNeg ∈ Sign
+proof
+  reduce
+  auto
+qed
+
+theorem mul_neg_neg : MulSign(SNeg; SNeg) = SPos ∈ Sign
+proof
+  reduce
+  auto
+qed
+
+theorem mul_pos_top : MulSign(SPos; STop) = STop ∈ Sign
+proof
+  reduce
+  auto
+qed
+
+theorem mul_neg_top : MulSign(SNeg; STop) = STop ∈ Sign
+proof
+  reduce
+  auto
+qed

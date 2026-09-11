@@ -41,6 +41,12 @@ exampleTests =
                   , "examples/hoare.nuprl"
                   , "examples/regular.nuprl"
                   , "examples/euclid.nuprl"
+                  , "examples/compiler.nuprl"
+                  , "examples/subtyping.nuprl"
+                  , "examples/monads.nuprl"
+                  , "examples/bags.nuprl"
+                  , "examples/bisimulation.nuprl"
+                  , "examples/abstract_interp.nuprl"
                   ]
             mapM_ checkFile files
     ]

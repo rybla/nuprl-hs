@@ -1,0 +1,257 @@
+-- | Semantic subtyping, refinement types, and intersection types in CTT.
+--
+-- In NuPRL's computational type theory, subtyping is semantic containment:
+-- `A` is a subtype of `B` if every element of `A` is an element of `B` with
+-- the same computational equality:
+--
+-- > Subtype(A; B) == ∀x:A. x ∈ B
+--
+-- This theory formalizes:
+-- 1. Preorder properties of subtyping (reflexivity, transitivity) and equivalence `SubEq`.
+-- 2. Extremal types: bottom `Void` is a subtype of every type.
+-- 3. Set-theoretic intersection `Intersect(A; B) == {x:A | x ∈ B}` as a greatest lower bound.
+-- 4. Refinement / set subtyping (`{x:A | P x} ≤ A`) and monotonicity under implication.
+-- 5. Variance laws for type constructors:
+--    - Functions: contravariant in domain, covariant in codomain.
+--    - Products: covariant in both components.
+--    - Unions: covariant in both components.
+-- 6. Concrete subtyping hierarchy: `Positive ≤ Nat ≤ Int`.
+theory Subtyping
+
+comment book "Semantic subtyping, intersection types, refinement subtyping, and variance laws."
+
+abs Subtype(A; B) == ∀x:A. x ∈ B
+abs SubEq(A; B) == Subtype(A; B) ∧ Subtype(B; A)
+
+abs Intersect(A; B) == {x:A | x ∈ B}
+abs Nat == {x:Int | ¬(x < 0)}
+abs Positive == {x:Int | 0 < x}
+
+abs Bot == Void
+
+soft Subtype, SubEq, Intersect, Nat, Positive, Bot
+
+--------------------------------------------------------------------------------
+-- Preorder properties of Subtype
+--------------------------------------------------------------------------------
+
+theorem subtype_refl :
+  ∀A:U{i}. Subtype(A; A)
+proof
+  intro A
+  intro x
+  auto
+qed
+
+theorem subtype_trans :
+  ∀A:U{i}. ∀B:U{i}. ∀C:U{i}.
+    Subtype(A; B) → Subtype(B; C) → Subtype(A; C)
+proof
+  intro A
+  intro B
+  intro C
+  intro hab
+  intro hbc
+  intro x
+  elim 4 with x THENL [
+    hyp,
+    elim 5 with x THENL [hyp, hyp]
+  ]
+qed
+
+--------------------------------------------------------------------------------
+-- Subtyping equivalence: SubEq
+--------------------------------------------------------------------------------
+
+theorem subeq_refl :
+  ∀A:U{i}. SubEq(A; A)
+proof
+  intro A
+  split THENL [
+    lemma subtype_refl [A] THEN hyp,
+    lemma subtype_refl [A] THEN hyp
+  ]
+qed
+
+theorem subeq_sym :
+  ∀A:U{i}. ∀B:U{i}. SubEq(A; B) → SubEq(B; A)
+proof
+  intro A
+  intro B
+  intro h
+  elim 3
+  split THENL [hyp 5, hyp 4]
+qed
+
+theorem subeq_trans :
+  ∀A:U{i}. ∀B:U{i}. ∀C:U{i}.
+    SubEq(A; B) → SubEq(B; C) → SubEq(A; C)
+proof
+  intro A
+  intro B
+  intro C
+  intro hab
+  intro hbc
+  elim 4
+  elim 5
+  split THENL [
+    lemma subtype_trans [A, B, C] THEN elim 10 with u THENL [hyp, elim 11 with u1 THENL [hyp, hyp]],
+    lemma subtype_trans [C, B, A] THEN elim 10 with v1 THENL [hyp, elim 11 with v THENL [hyp, hyp]]
+  ]
+qed
+
+--------------------------------------------------------------------------------
+-- Extremal types: Bot
+--------------------------------------------------------------------------------
+
+theorem subtype_bot :
+  ∀A:U{i}. Subtype(Bot; A)
+proof
+  intro A
+  intro x
+  elim 2
+qed
+
+--------------------------------------------------------------------------------
+-- Refinement / Set subtyping
+--------------------------------------------------------------------------------
+
+theorem subtype_set :
+  ∀A:U{i}. ∀P:(A → U{i}). Subtype({x:A | P x}; A)
+proof
+  intro A
+  intro P
+  intro x
+  hyp
+qed
+
+theorem subtype_set_eq :
+  ∀A:U{i}. ∀a:A. Subtype({x:A | x = a ∈ A}; A)
+proof
+  intro A
+  intro a
+  intro x
+  hyp
+qed
+
+--------------------------------------------------------------------------------
+-- Set-theoretic intersection: greatest lower bound
+--------------------------------------------------------------------------------
+
+theorem subtype_intersect_l :
+  ∀A:U{i}. ∀B:U{i}. Subtype(Intersect(A; B); A)
+proof
+  intro A
+  intro B
+  intro x
+  hyp
+qed
+
+theorem subtype_intersect_r :
+  ∀A:U{i}. ∀B:U{i}. Subtype(Intersect(A; B); B)
+proof
+  intro A
+  intro B
+  intro x
+  elim 3
+  hyp
+qed
+
+theorem subtype_intersect_glb :
+  ∀A:U{i}. ∀B:U{i}. ∀C:U{i}.
+    Subtype(C; A) → Subtype(C; B) → Subtype(C; Intersect(A; B))
+proof
+  intro A
+  intro B
+  intro C
+  intro hca
+  intro hcb
+  intro x
+  intro with x THENL [
+    elim 4 with x THENL [hyp, hyp],
+    elim 5 with x THENL [hyp, hyp]
+  ]
+qed
+
+--------------------------------------------------------------------------------
+-- Structural variance laws: Arrow, Product, Union
+--------------------------------------------------------------------------------
+
+-- Arrow: contravariant domain, covariant codomain
+theorem subtype_arrow :
+  ∀S1:U{i}. ∀S2:U{i}. ∀T1:U{i}. ∀T2:U{i}.
+    Subtype(S2; S1) → Subtype(T1; T2) → Subtype(S1 → T1; S2 → T2)
+proof
+  intro S1
+  intro S2
+  intro T1
+  intro T2
+  intro hs
+  intro ht
+  intro f
+  eq
+  elim 5 with x THENL [
+    hyp,
+    elim 7 with x THENL [
+      hyp,
+      elim 6 with y1 THENL [hyp, hyp]
+    ]
+  ]
+qed
+
+-- Product: covariant in both components
+theorem subtype_prod :
+  ∀A1:U{i}. ∀A2:U{i}. ∀B1:U{i}. ∀B2:U{i}.
+    Subtype(A1; A2) → Subtype(B1; B2) → Subtype(A1 × B1; A2 × B2)
+proof
+  intro A1
+  intro A2
+  intro B1
+  intro B2
+  intro ha
+  intro hb
+  intro p
+  elim 7
+  intro with u THENL [
+    elim 5 with u THENL [hyp, hyp],
+    elim 6 with v THENL [hyp, hyp]
+  ]
+qed
+
+-- Union: covariant in both components
+theorem subtype_union :
+  ∀A1:U{i}. ∀A2:U{i}. ∀B1:U{i}. ∀B2:U{i}.
+    Subtype(A1; A2) → Subtype(B1; B2) → Subtype(A1 ⊎ B1; A2 ⊎ B2)
+proof
+  intro A1
+  intro A2
+  intro B1
+  intro B2
+  intro ha
+  intro hb
+  intro u
+  elim 7 THENL [
+    intro left
+    elim 5 with u1 THENL [hyp, hyp],
+    intro right
+    elim 6 with v THENL [hyp, hyp]
+  ]
+qed
+
+--------------------------------------------------------------------------------
+-- Concrete arithmetic subtyping hierarchy: Positive ≤ Nat ≤ Int
+--------------------------------------------------------------------------------
+
+theorem subtype_nat_int :
+  Subtype(Nat; Int)
+proof
+  intro x
+  hyp
+qed
+
+theorem subtype_pos_int :
+  Subtype(Positive; Int)
+proof
+  intro x
+  hyp
+qed

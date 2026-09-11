@@ -128,6 +128,36 @@ exampleMetas =
       "Euclidean algorithm"
       "Verified Euclidean algorithm, structural step properties, common divisor specification, and coprimality."
       Nothing
+  , ExampleMeta
+      "compiler"
+      "Verified compiler"
+      "Expression language, stack machine bytecode, compiler correctness, and execution theorems."
+      Nothing
+  , ExampleMeta
+      "subtyping"
+      "Semantic subtyping"
+      "Inclusion subtyping in CTT, set and intersection types, negative type discrimination, and function variance laws."
+      Nothing
+  , ExampleMeta
+      "monads"
+      "Computational monads"
+      "State and exception monads in type theory, Kleisli arrows, and algebraic effect laws."
+      Nothing
+  , ExampleMeta
+      "bags"
+      "Multisets (Bags)"
+      "Bags as quotient types over lists by permutation, representative independence, and algebraic laws."
+      (Just "Constable et al. §10.3")
+  , ExampleMeta
+      "bisimulation"
+      "Bisimulation"
+      "Labelled transition systems, forward simulation, bisimilarity equivalence, and deterministic process congruence."
+      Nothing
+  , ExampleMeta
+      "abstract_interp"
+      "Abstract interpretation"
+      "Sign analysis domain, concretization relation, and sound abstract operations."
+      Nothing
   ]
 
 lookupMeta :: Text -> Maybe ExampleMeta

@@ -1,0 +1,270 @@
+-- | State and Exception monads and algebraic effect laws in CTT.
+--
+-- This theory formalizes:
+-- 1. The State monad `State(S; A) == S → A × S`, Return, Bind, and Kleisli composition.
+-- 2. State inspection and mutation primitives (`Get`, `Put`, `EvalState`, `ExecState`).
+-- 3. Algebraic State laws: Left Unit, Put-Get, Put-Put, Get-Put, and Get-Get idempotence.
+-- 4. The Exception / Error monad `Except(E; A) == E ⊎ A`, Return, Throw, Bind, and Catch.
+-- 5. Exception laws: Left Unit, short-circuiting on Throw, and Catch resolution.
+theory Monads
+
+comment book "State and Exception monads, algebraic laws, and state interaction equations."
+
+abs Fst(p) == let <u, v> = p in u
+abs Snd(p) == let <u, v> = p in v
+
+-- State monad:
+abs State(S; A) == S → A × S
+abs SReturn(x) == λs. <x, s>
+abs SBind(m; f) == λs. let <a, s1> = m s in f a s1
+abs SKleisli(f; g) == λx. SBind(f x; g)
+
+abs Get == λs. <s, s>
+abs Put(s1) == λs. <Ax, s1>
+
+abs RunState(m; s) == m s
+abs EvalState(m; s) == Fst(m s)
+abs ExecState(m; s) == Snd(m s)
+
+-- Exception monad:
+abs Except(E; A) == E ⊎ A
+abs EReturn(x) == inr x
+abs EThrow(e) == inl e
+abs EBind(m; f) ==
+  decide m of
+    inl err => inl err
+  | inr val => f val
+abs ECatch(m; h) ==
+  decide m of
+    inl err => h err
+  | inr val => inr val
+
+soft Fst, Snd
+soft State, SReturn, SBind, SKleisli, Get, Put, RunState, EvalState, ExecState
+soft Except, EReturn, EThrow, EBind, ECatch
+
+--------------------------------------------------------------------------------
+-- State monad: typing
+--------------------------------------------------------------------------------
+
+theorem sreturn_ty :
+  ∀S:U{i}. ∀A:U{i}. A → State(S; A)
+proof
+  intro S
+  intro A
+  intro x
+  intro s
+  auto
+qed
+
+theorem get_ty :
+  ∀S:U{i}. State(S; S)
+proof
+  intro S
+  intro s
+  auto
+qed
+
+theorem put_ty :
+  ∀S:U{i}. S → State(S; Unit)
+proof
+  intro S
+  intro s1
+  intro s
+  auto
+qed
+
+--------------------------------------------------------------------------------
+-- State monad: algebraic laws
+--------------------------------------------------------------------------------
+
+-- Left identity: Bind (Return x) f = f x
+theorem state_left_unit :
+  ∀S:U{i}. ∀A:U{i}. ∀B:U{i}.
+  ∀x:A. ∀f:(A → State(S; B)). ∀s:S.
+    SBind(SReturn(x); f) s = f x s ∈ B × S
+proof
+  intro S
+  intro A
+  intro B
+  intro x
+  intro f
+  intro s
+  reduce
+  eq THEN auto
+qed
+
+theorem state_eval_return :
+  ∀S:U{i}. ∀A:U{i}. ∀x:A. ∀s:S.
+    EvalState(SReturn(x); s) = x ∈ A
+proof
+  intro S
+  intro A
+  intro x
+  intro s
+  reduce
+  eq THEN auto
+qed
+
+theorem state_exec_return :
+  ∀S:U{i}. ∀A:U{i}. ∀x:A. ∀s:S.
+    ExecState(SReturn(x); s) = s ∈ S
+proof
+  intro S
+  intro A
+  intro x
+  intro s
+  reduce
+  eq THEN auto
+qed
+
+--------------------------------------------------------------------------------
+-- State interaction equations
+--------------------------------------------------------------------------------
+
+-- Put followed by Get returns the written state:
+theorem state_put_get :
+  ∀S:U{i}. ∀s1:S. ∀s:S.
+    SBind(Put(s1); (λu. Get)) s = <s1, s1> ∈ S × S
+proof
+  intro S
+  intro s1
+  intro s
+  reduce
+  eq THEN auto
+qed
+
+-- Put followed by Put overwrites:
+theorem state_put_put :
+  ∀S:U{i}. ∀s1:S. ∀s2:S. ∀s:S.
+    SBind(Put(s1); (λu. Put(s2))) s = <Ax, s2> ∈ Unit × S
+proof
+  intro S
+  intro s1
+  intro s2
+  intro s
+  reduce
+  eq THEN auto
+qed
+
+-- Get followed by Put of the same state is a no-op on the store:
+theorem state_get_put :
+  ∀S:U{i}. ∀s:S.
+    SBind(Get; (λs1. Put(s1))) s = <Ax, s> ∈ Unit × S
+proof
+  intro S
+  intro s
+  reduce
+  eq THEN auto
+qed
+
+-- Get followed by Get yields identical values (idempotence):
+theorem state_get_get :
+  ∀S:U{i}. ∀A:U{i}. ∀k:(S → S → State(S; A)). ∀s:S.
+    SBind(Get; (λs1. SBind(Get; (λs2. k s1 s2)))) s =
+      SBind(Get; (λs1. k s1 s1)) s ∈ A × S
+proof
+  intro S
+  intro A
+  intro k
+  intro s
+  reduce
+  eq THEN auto
+qed
+
+-- Associativity step on a computed return:
+theorem state_assoc_step :
+  ∀S:U{i}. ∀A:U{i}. ∀B:U{i}. ∀C:U{i}.
+  ∀a:A. ∀s:S. ∀f:(A → State(S; B)). ∀g:(B → State(S; C)).
+    SBind(SBind(SReturn(a); f); g) s =
+      SBind(SReturn(a); (λx. SBind(f x; g))) s ∈ C × S
+proof
+  intro S
+  intro A
+  intro B
+  intro C
+  intro a
+  intro s
+  intro f
+  intro g
+  reduce
+  eq THEN auto
+qed
+
+--------------------------------------------------------------------------------
+-- Exception monad: typing and laws
+--------------------------------------------------------------------------------
+
+theorem except_return_ty :
+  ∀E:U{i}. ∀A:U{i}. A → Except(E; A)
+proof
+  intro E
+  intro A
+  intro x
+  intro right
+  hyp
+qed
+
+theorem except_throw_ty :
+  ∀E:U{i}. ∀A:U{i}. E → Except(E; A)
+proof
+  intro E
+  intro A
+  intro err
+  intro left
+  hyp
+qed
+
+theorem except_left_unit :
+  ∀E:U{i}. ∀A:U{i}. ∀B:U{i}.
+  ∀x:A. ∀f:(A → Except(E; B)).
+    EBind(EReturn(x); f) = f x ∈ Except(E; B)
+proof
+  intro E
+  intro A
+  intro B
+  intro x
+  intro f
+  reduce
+  eq THEN auto
+qed
+
+theorem except_bind_throw :
+  ∀E:U{i}. ∀A:U{i}. ∀B:U{i}.
+  ∀err:E. ∀f:(A → Except(E; B)).
+    EBind(EThrow(err); f) = EThrow(err) ∈ Except(E; B)
+proof
+  intro E
+  intro A
+  intro B
+  intro err
+  intro f
+  reduce
+  eq THEN auto
+qed
+
+theorem except_catch_throw :
+  ∀E:U{i}. ∀A:U{i}.
+  ∀err:E. ∀h:(E → Except(E; A)).
+    ECatch(EThrow(err); h) = h err ∈ Except(E; A)
+proof
+  intro E
+  intro A
+  intro err
+  intro h
+  reduce
+  eq THEN auto
+qed
+
+theorem except_catch_return :
+  ∀E:U{i}. ∀A:U{i}.
+  ∀x:A. ∀h:(E → Except(E; A)).
+    ECatch(EReturn(x); h) = EReturn(x) ∈ Except(E; A)
+proof
+  intro E
+  intro A
+  intro x
+  intro h
+  reduce
+  eq THEN auto
+qed

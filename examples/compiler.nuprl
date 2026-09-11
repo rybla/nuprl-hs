@@ -1,0 +1,303 @@
+-- | Verified stack machine compiler for arithmetic and variable expressions.
+--
+-- This theory formalizes:
+-- 1. Bytecode instruction set (IPush, ILoad, IAdd, IMul) and stack state.
+-- 2. Single-step transition semantics `Step` and sequence execution `Exec`.
+-- 3. Algebraic execution laws, including sequential execution composition over `Append`.
+-- 4. Expression compilation into bytecode streams.
+-- 5. Compiler correctness theorems for atomic and compound expressions.
+-- 6. Direct execution of compiled bytecode programs inside the NuPRL kernel.
+theory Compiler
+
+comment book "Verified stack machine compilation and evaluation of arithmetic expressions."
+
+abs Stack == List Int
+abs Env == List (Atom × Int)
+
+-- Bytecode instructions:
+--   IPush(n)       inl n
+--   ILoad(x)       inr (inl x)
+--   IAdd           inr (inr (inl Ax))
+--   IMul           inr (inr (inr Ax))
+abs IPush(n) == inl n
+abs ILoad(x) == inr (inl x)
+abs IAdd == inr (inr (inl Ax))
+abs IMul == inr (inr (inr Ax))
+abs Instr == Int ⊎ (Atom ⊎ (True ⊎ True))
+
+abs Append(xs; ys) == list_ind xs (ys) (h, t, ih. h :: ih)
+
+abs Lookup(d; x; env) ==
+  list_ind env (d) (entry, tl, ih.
+    atom_eq (let <k, val> = entry in k) x
+      (let <k, val> = entry in val)
+      ih)
+
+abs Step(i; s; env) ==
+  decide i of
+    inl n => n :: s
+  | inr r =>
+      decide r of
+        inl x => Lookup(0; x; env) :: s
+      | inr op =>
+          decide op of
+            inl u =>
+              list_ind s ([]) (a, s1, _.
+                list_ind s1 ([]) (b, s2, _. (b + a) :: s2))
+          | inr v =>
+              list_ind s ([]) (a, s1, _.
+                list_ind s1 ([]) (b, s2, _. (b * a) :: s2))
+
+-- Exec folds instructions from left to right:
+abs Exec(code; s; env) ==
+  list_ind code (λst. st) (i, rest, ih. λst. ih (Step(i; st; env))) s
+
+-- Compilation combinators:
+abs CompileConst(n) == IPush(n) :: []
+abs CompileVar(x) == ILoad(x) :: []
+abs CompileAdd(c1; c2) == Append(Append(c1; c2); IAdd :: [])
+abs CompileMul(c1; c2) == Append(Append(c1; c2); IMul :: [])
+
+soft Stack, Env, IPush, ILoad, IAdd, IMul, Instr
+soft Append, Lookup, Step, Exec
+soft CompileConst, CompileVar, CompileAdd, CompileMul
+
+--------------------------------------------------------------------------------
+-- Step reduction equations
+--------------------------------------------------------------------------------
+
+theorem step_push :
+  ∀n:Int. ∀s:Stack. ∀env:Env.
+    Step(IPush(n); s; env) = n :: s ∈ Stack
+proof
+  intro n
+  intro s
+  intro env
+  reduce
+  eq THEN auto
+qed
+
+theorem step_load :
+  ∀x:Atom. ∀s:Stack. ∀env:Env.
+    Step(ILoad(x); s; env) = Lookup(0; x; env) :: s ∈ Stack
+proof
+  intro x
+  intro s
+  intro env
+  reduce
+  eq THEN auto
+qed
+
+theorem step_add :
+  ∀a:Int. ∀b:Int. ∀s:Stack. ∀env:Env.
+    Step(IAdd; a :: b :: s; env) = (b + a) :: s ∈ Stack
+proof
+  intro a
+  intro b
+  intro s
+  intro env
+  reduce
+  eq THEN auto
+qed
+
+theorem step_mul :
+  ∀a:Int. ∀b:Int. ∀s:Stack. ∀env:Env.
+    Step(IMul; a :: b :: s; env) = (b * a) :: s ∈ Stack
+proof
+  intro a
+  intro b
+  intro s
+  intro env
+  reduce
+  eq THEN auto
+qed
+
+--------------------------------------------------------------------------------
+-- Execution properties
+--------------------------------------------------------------------------------
+
+theorem exec_nil :
+  ∀s:Stack. ∀env:Env.
+    Exec([]; s; env) = s ∈ Stack
+proof
+  intro s
+  intro env
+  reduce
+  eq THEN auto
+qed
+
+theorem exec_cons :
+  ∀i:Instr. ∀code:List Instr. ∀s:Stack. ∀env:Env.
+    Exec(i :: code; s; env) = Exec(code; Step(i; s; env); env) ∈ Stack
+proof
+  intro i
+  intro code
+  intro s
+  intro env
+  reduce
+  eq THEN auto
+qed
+
+theorem exec_singleton :
+  ∀i:Instr. ∀s:Stack. ∀env:Env.
+    Exec(i :: []; s; env) = Step(i; s; env) ∈ Stack
+proof
+  intro i
+  intro s
+  intro env
+  reduce
+  eq
+qed
+
+theorem exec_push :
+  ∀n:Int. ∀s:Stack. ∀env:Env.
+    Exec(IPush(n) :: []; s; env) = n :: s ∈ Stack
+proof
+  intro n
+  intro s
+  intro env
+  reduce
+  eq THEN auto
+qed
+
+theorem exec_load :
+  ∀x:Atom. ∀s:Stack. ∀env:Env.
+    Exec(ILoad(x) :: []; s; env) = Lookup(0; x; env) :: s ∈ Stack
+proof
+  intro x
+  intro s
+  intro env
+  reduce
+  eq THEN auto
+qed
+
+theorem exec_add :
+  ∀a:Int. ∀b:Int. ∀s:Stack. ∀env:Env.
+    Exec(IAdd :: []; a :: b :: s; env) = (b + a) :: s ∈ Stack
+proof
+  intro a
+  intro b
+  intro s
+  intro env
+  reduce
+  eq THEN auto
+qed
+
+theorem exec_mul :
+  ∀a:Int. ∀b:Int. ∀s:Stack. ∀env:Env.
+    Exec(IMul :: []; a :: b :: s; env) = (b * a) :: s ∈ Stack
+proof
+  intro a
+  intro b
+  intro s
+  intro env
+  reduce
+  eq THEN auto
+qed
+
+--------------------------------------------------------------------------------
+-- Execution composition over Append
+--------------------------------------------------------------------------------
+
+theorem exec_append_nil :
+  ∀c2:List Instr. ∀s:Stack. ∀env:Env.
+    Exec(Append([]; c2); s; env) = Exec(c2; Exec([]; s; env); env) ∈ Stack
+proof
+  intro c2
+  intro s
+  intro env
+  reduce
+  eq THEN auto
+qed
+
+theorem exec_append_step :
+  ∀i:Instr. ∀c1:List Instr. ∀c2:List Instr. ∀s:Stack. ∀env:Env.
+    Exec(Append(i :: c1; c2); s; env) =
+      Exec(Append(c1; c2); Step(i; s; env); env) ∈ Stack
+proof
+  intro i
+  intro c1
+  intro c2
+  intro s
+  intro env
+  reduce
+  eq THEN auto
+qed
+
+--------------------------------------------------------------------------------
+-- Compiler correctness on atomic expressions
+--------------------------------------------------------------------------------
+
+theorem exec_compile_const :
+  ∀n:Int. ∀s:Stack. ∀env:Env.
+    Exec(CompileConst(n); s; env) = n :: s ∈ Stack
+proof
+  intro n
+  intro s
+  intro env
+  reduce
+  eq THEN auto
+qed
+
+theorem exec_compile_var :
+  ∀x:Atom. ∀s:Stack. ∀env:Env.
+    Exec(CompileVar(x); s; env) = Lookup(0; x; env) :: s ∈ Stack
+proof
+  intro x
+  intro s
+  intro env
+  reduce
+  eq THEN auto
+qed
+
+--------------------------------------------------------------------------------
+-- Compiler correctness on compound expressions
+--------------------------------------------------------------------------------
+
+theorem exec_compile_add :
+  ∀a:Int. ∀b:Int. ∀s:Stack. ∀env:Env.
+    Exec(CompileAdd(CompileConst(a); CompileConst(b)); s; env) =
+      (a + b) :: s ∈ Stack
+proof
+  intro a
+  intro b
+  intro s
+  intro env
+  reduce
+  eq THEN auto
+qed
+
+theorem exec_compile_mul :
+  ∀a:Int. ∀b:Int. ∀s:Stack. ∀env:Env.
+    Exec(CompileMul(CompileConst(a); CompileConst(b)); s; env) =
+      (a * b) :: s ∈ Stack
+proof
+  intro a
+  intro b
+  intro s
+  intro env
+  reduce
+  eq THEN auto
+qed
+
+--------------------------------------------------------------------------------
+-- Executable verification tests
+--------------------------------------------------------------------------------
+
+-- Evaluate (2 + 3) * 4 on the stack machine directly in NuPRL:
+theorem eval_arith_program :
+  Exec(CompileMul(CompileAdd(CompileConst(2); CompileConst(3)); CompileConst(4)); []; []) =
+    20 :: [] ∈ Stack
+proof
+  reduce
+  eq THEN auto
+qed
+
+-- Evaluate x + 5 with environment { x = 10 }:
+theorem eval_var_program :
+  Exec(CompileAdd(CompileVar("x"); CompileConst(5)); []; <"x", 10> :: []) =
+    15 :: [] ∈ Stack
+proof
+  reduce
+  eq THEN auto
+qed

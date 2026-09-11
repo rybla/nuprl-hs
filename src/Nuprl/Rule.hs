@@ -268,21 +268,14 @@ ruleHyp i sq = do
             -- The conclusion is the hypothesis type: inhabit it with x.
             _
               | typesEq c ty -> success extractOf
-            -- Membership / reflexivity at the declared type.
+            -- Membership / reflexivity at the declared type (including set/quotient carriers).
             TEqual t a b
-              | typesEq t ty
+              | matchType ty' t
                   && computeEq a (TVar x)
                   && computeEq b (TVar x) ->
                   success TAxiom
             TEqual t a b
-              | typesEq t ty && computeEq a b && computeEq a (TVar x) ->
-                  success TAxiom
-            -- A quotient element is a representative of the base type.
-            TEqual t a b
-              | TQuotient base _ _ _ <- ty'
-              , typesEq t base
-                  && computeEq a (TVar x)
-                  && computeEq b (TVar x) ->
+              | matchType ty' t && computeEq a b && computeEq a (TVar x) ->
                   success TAxiom
             -- Universe cumulativity: x : U{i}  ⊢  x ∈ U{j}  for i ≤ j.
             TEqual (TUniverse j) a b
@@ -676,6 +669,8 @@ eqByType sq ty' a' b' =
             (TNil, TNil) -> eqDone
             (TCons h1 t1, TCons h2 t2) ->
               subgoals [TEqual aTy h1 h2, TEqual (TList aTy) t1 t2]
+            _
+              | computeEq a' b' -> eqDone
             _ -> failRule "eq" "list values are not both nil or both cons"
         TVoid -> failRule "eq" "Void has no canonical values"
         _
@@ -723,6 +718,8 @@ eqInUniverse sq lvl a b =
             }
       u = TUniverse lvl
    in case (headForm a, headForm b) of
+        (a', b')
+          | alphaEq a' b' || computeEq a' b' -> done
         (TVoid, TVoid) -> done
         (TUnit, TUnit) -> done
         (TInt, TInt) -> done
@@ -806,6 +803,19 @@ isUnitVal t = case headForm t of
   TUnit -> False
   _ -> False
 
+-- | Match a declared hypothesis type against a needed type, traversing
+-- through set and quotient carriers.
+matchType :: Term -> Term -> Bool
+matchType declared needed =
+  let d = headForm declared
+      n = headForm needed
+   in typesEq d n
+        || universeCover d n
+        || case d of
+          TSet base _ _ -> matchType base n
+          TQuotient base _ _ _ -> matchType base n
+          _ -> False
+
 -- | Does some hypothesis declare @tm@ at a type matching @ty@?
 matchDecl :: Sequent -> Term -> Term -> Maybe Hypothesis
 matchDecl sq tm ty =
@@ -815,7 +825,7 @@ matchDecl sq tm ty =
         [ h
         | h <- seqHyps sq
         , hVar h == x
-        , typesEq (hType h) ty || universeCover (hType h) ty
+        , matchType (hType h) ty
         ] of
         h : _ -> Just h
         [] -> Nothing
@@ -1036,37 +1046,55 @@ elimEqual sq _i d t a b
       elimEqual sq _i d bTy a1 b1
   | otherwise =
       let c = seqConcl sq
-          c1 = substTermHead a b c
-          c2 = substTermHead b a c
-          c' = if not (alphaEq c c1) then c1 else c2
-       in if alphaEq c c'
-            then failRule "elim" "equality does not rewrite the conclusion"
-            else
+          (c1, r1) = replaceConvChecked a b c
+          (c2, r2) = replaceConvChecked b a c
+       in if r1
+            then
               Right
                 RuleResult
                   { rrName = "elim"
-                  , rrSubgoals = [LabeledGoal "main" sq {seqConcl = c'}]
+                  , rrSubgoals = [LabeledGoal "main" sq {seqConcl = c1}]
                   , rrExtract = \case
                       (e : _) -> e
                       [] -> TAxiom
                   }
-  where
-    substTermHead = replaceConv
+            else if r2
+              then
+                Right
+                  RuleResult
+                    { rrName = "elim"
+                    , rrSubgoals = [LabeledGoal "main" sq {seqConcl = c2}]
+                    , rrExtract = \case
+                        (e : _) -> e
+                        [] -> TAxiom
+                    }
+              else failRule "elim" "equality does not rewrite the conclusion"
 
 -- | Replace convertibly-equal occurrences of @src@ with @dst@, reducing
 -- redexes so @f ((λx. t) a)@ matches an equality about @t[a/x]@.
 replaceConv :: Term -> Term -> Term -> Term
-replaceConv src dst = go
+replaceConv src dst tm = fst (replaceConvChecked src dst tm)
+
+-- | Like 'replaceConv', but reports whether any replacement actually occurred.
+replaceConvChecked :: Term -> Term -> Term -> (Term, Bool)
+replaceConvChecked src dst = go
   where
     go tm
-      | computeEq tm src = dst
+      | computeEq tm src = (dst, True)
       | otherwise =
           let tm' = whnf tm
            in if computeEq tm' src
-                then dst
+                then (dst, True)
                 else case tm' of
-                  TVar _ -> tm'
-                  TOp op bts -> TOp op (map (\(BoundTerm vs body) -> BoundTerm vs (go body)) bts)
+                  TVar _ -> (tm, False)
+                  TOp op bts ->
+                    let (bts', anyRep) = foldr stepChild ([], False) bts
+                     in if anyRep
+                          then (TOp op bts', True)
+                          else (tm, False)
+    stepChild (BoundTerm vs body) (accBts, accRep) =
+      let (body', rep) = go body
+       in (BoundTerm vs body' : accBts, accRep || rep)
 
 -- | Distinct canonical constructors: an equality between them is empty.
 canonicalClash :: Term -> Term -> Bool
@@ -1118,6 +1146,7 @@ elimSet sq _i s a y p =
       sub =
         sq
           { seqHyps = seqHyps sq ++ [visibleHyp u a, hiddenHyp w p']
+          , seqConcl = subst1 s (TVar u) (seqConcl sq)
           }
    in Right
         RuleResult

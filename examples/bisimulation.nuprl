@@ -1,0 +1,274 @@
+-- | Labelled transition systems, bisimulation, and process equivalence in CTT.
+--
+-- This theory formalizes:
+-- 1. Labelled Transition Systems (LTS) over states `S` and action labels in `Atom`.
+-- 2. Simulation relations `Sim(S; R; step)`.
+-- 3. Bisimulation relations `Bisim(S; R; step)` (mutual forward simulation).
+-- 4. Bisimilarity `Bisimilar(S; step; s; t)` as an existential relation.
+-- 5. Proof that identity is a simulation and bisimulation on any LTS.
+-- 6. Equivalence properties of bisimilarity (reflexivity, symmetry).
+-- 7. Deterministic transition step functions and behavioral congruence.
+theory Bisimulation
+
+comment book "Labelled transition systems, simulation relations, and bisimilarity."
+
+-- An LTS transition relation: s --a--> s1
+abs Trans(S) == S → Atom → S → U{i}
+
+-- Simulation: every step of s is matched by t, preserving R
+abs Sim(S; R; step) ==
+  ∀s:S. ∀t:S. R s t →
+    ∀a:Atom. ∀s1:S. step s a s1 →
+      ∃t1:S. step t a t1 ∧ R s1 t1
+
+-- Bisimulation: mutual simulation
+abs Bisim(S; R; step) ==
+  Sim(S; R; step) ∧
+  (∀s:S. ∀t:S. R s t →
+    ∀a:Atom. ∀t1:S. step t a t1 →
+      ∃s1:S. step s a s1 ∧ R s1 t1)
+
+-- Bisimilarity: existence of a bisimulation relating s and t
+abs Bisimilar(S; step; s; t) ==
+  ∃R:(S → S → U{i}). Bisim(S; R; step) ∧ R s t
+
+-- Identity relation:
+abs IdRel(S) == λs. λt. s = t ∈ S
+
+-- Deterministic transition step functions:
+abs DetStep(S) == S → Atom → S
+abs DetRel(S; f) == λs. λa. λs1. s1 = f s a ∈ S
+
+soft Trans, Sim, Bisim, Bisimilar, IdRel, DetStep, DetRel
+
+--------------------------------------------------------------------------------
+-- Identity relation properties
+--------------------------------------------------------------------------------
+
+theorem id_rel_refl :
+  ∀S:U{i}. ∀s:S. IdRel(S) s s
+proof
+  intro S
+  intro s
+  reduce
+  eq
+qed
+
+theorem id_rel_sym :
+  ∀S:U{i}. ∀s:S. ∀t:S. IdRel(S) s t → IdRel(S) t s
+proof
+  intro S
+  intro s
+  intro t
+  intro p
+  reduce
+  elim 4
+  eq
+qed
+
+theorem id_rel_trans :
+  ∀S:U{i}. ∀s:S. ∀t:S. ∀u:S.
+    IdRel(S) s t → IdRel(S) t u → IdRel(S) s u
+proof
+  intro S
+  intro s
+  intro t
+  intro u
+  intro pst
+  intro ptu
+  reduce
+  elim 5
+  elim 6
+  hyp
+qed
+
+--------------------------------------------------------------------------------
+-- Identity is a simulation and bisimulation
+--------------------------------------------------------------------------------
+
+theorem id_sim :
+  ∀S:U{i}. ∀step:Trans(S). Sim(S; IdRel(S); step)
+proof
+  intro S
+  intro step
+  intro s
+  intro t
+  intro rst
+  intro a
+  intro s1
+  intro step_s
+  reduce
+  elim 5
+  exists s1 THENL [
+    hyp,
+    split THENL [hyp 8, reduce THEN eq]
+  ]
+qed
+
+theorem id_bisim :
+  ∀S:U{i}. ∀step:Trans(S). Bisim(S; IdRel(S); step)
+proof
+  intro S
+  intro step
+  split THENL [
+    lemma id_sim [S, step] THEN hyp,
+    intro s
+    intro t
+    intro rst
+    intro a
+    intro t1
+    intro step_t
+    reduce
+    elim 5
+    exists t1 THENL [
+      hyp,
+      split THENL [hyp 8, reduce THEN eq]
+    ]
+  ]
+qed
+
+--------------------------------------------------------------------------------
+-- Bisimilarity properties
+--------------------------------------------------------------------------------
+
+-- Reflexivity of bisimilarity:
+theorem bisimilar_refl :
+  ∀S:U{i}. ∀step:Trans(S). ∀s:S. Bisimilar(S; step; s; s)
+proof
+  intro S
+  intro step
+  intro s
+  exists (IdRel(S)) THENL [
+    auto,
+    split THENL [
+      lemma id_bisim [S, step] THEN hyp,
+      reduce THEN eq
+    ]
+  ]
+qed
+
+-- Symmetry of bisimulations:
+theorem bisim_sym :
+  ∀S:U{i}. ∀R:(S → S → U{i}). ∀step:Trans(S).
+    Bisim(S; R; step) → Bisim(S; (λs. λt. R t s); step)
+proof
+  intro S
+  intro R
+  intro step
+  intro hbisim
+  elim 4;
+  split THENL [
+    intro s
+    intro t
+    intro rts
+    intro a
+    intro s1
+    intro step_s
+    elim 6 with t THENL [
+      hyp,
+      elim 13 with s THENL [
+        hyp,
+        elim 14 with rts THENL [
+          hyp,
+          elim 15 with a THENL [
+            hyp,
+            elim 16 with s1 THENL [
+              hyp,
+              elim 17 with step_s THENL [
+                hyp,
+                elim 18
+                elim 20
+                exists u1 THENL [
+                  hyp,
+                  split THENL [hyp 21, reduce THEN hyp 22]
+                ]
+              ]
+            ]
+          ]
+        ]
+      ]
+    ],
+    intro s
+    intro t
+    intro rts
+    intro a
+    intro t1
+    intro step_t
+    elim 5 with t THENL [
+      hyp,
+      elim 13 with s THENL [
+        hyp,
+        elim 14 with rts THENL [
+          hyp,
+          elim 15 with a THENL [
+            hyp,
+            elim 16 with t1 THENL [
+              hyp,
+              elim 17 with step_t THENL [
+                hyp,
+                elim 18
+                elim 20
+                exists u1 THENL [
+                  hyp,
+                  split THENL [hyp 21, reduce THEN hyp 22]
+                ]
+              ]
+            ]
+          ]
+        ]
+      ]
+    ]
+  ]
+qed
+
+-- Symmetry of bisimilarity:
+theorem bisimilar_sym :
+  ∀S:U{i}. ∀step:Trans(S). ∀s:S. ∀t:S.
+    Bisimilar(S; step; s; t) → Bisimilar(S; step; t; s)
+proof
+  intro S
+  intro step
+  intro s
+  intro t
+  intro hst
+  elim 5
+  elim 7
+  exists (λx. λy. u y x) THENL [
+    auto,
+    split THENL [
+      lemma bisim_sym [S, u, step] THEN elim 10 with u1 THENL [hyp, hyp],
+      reduce THEN hyp
+    ]
+  ]
+qed
+
+--------------------------------------------------------------------------------
+-- Deterministic transition systems
+--------------------------------------------------------------------------------
+
+theorem det_step_congruence :
+  ∀S:U{i}. ∀f:DetStep(S). ∀s:S. ∀t:S.
+    s = t ∈ S → ∀a:Atom. f s a = f t a ∈ S
+proof
+  intro S
+  intro f
+  intro s
+  intro t
+  intro eq_st
+  intro a
+  elim 5
+  auto
+qed
+
+theorem det_rel_step :
+  ∀S:U{i}. ∀f:DetStep(S). ∀s:S. ∀a:Atom.
+    DetRel(S; f) s a (f s a)
+proof
+  intro S
+  intro f
+  intro s
+  intro a
+  reduce
+  auto
+qed
+

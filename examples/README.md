@@ -29,6 +29,12 @@ stack exec nuprl -- check examples/logic.nuprl
 | `hoare.nuprl` | Sound structural rules of Hoare logic (Skip, Pre, Post, Conjunction, Disjunction, Assignment) over stream semantics (§11.6) |
 | `regular.nuprl` | Regular expressions as languages, language containment preorder, mutual equivalence, and Kleene algebra (§11.4) |
 | `euclid.nuprl` | Verified Euclidean algorithm, structural step properties, common divisor specification, and coprimality |
+| `compiler.nuprl` | Verified stack machine compiler, expression evaluation, bytecode execution, and soundness |
+| `subtyping.nuprl` | Semantic subtyping, set and intersection types, negative type discrimination, and function variance laws |
+| `monads.nuprl` | State and exception computational monads, Kleisli arrows, and algebraic effect laws |
+| `bags.nuprl` | Multisets (Bags) as quotient types over lists by permutation, representation independence, and algebraic bag laws (§10.3) |
+| `bisimulation.nuprl` | Labelled transition systems (LTS), forward simulations, bisimilarity equivalence, and deterministic step congruence |
+| `abstract_interp.nuprl` | Abstract interpretation sign domain, concretization relation, and sound abstract operations |
 
 Theorems are checked by replaying their `proof` scripts on the kernel. A
 failing script is a check error, not a silent skip.

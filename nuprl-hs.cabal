@@ -27,10 +27,14 @@ extra-source-files:
     docs/placeholder.md
     docs/TACTICS.md
     docs/TYPE-THEORY.md
+    examples/abstract_interp.nuprl
+    examples/bags.nuprl
+    examples/bisimulation.nuprl
     examples/cardinality.nuprl
     examples/choice.nuprl
     examples/classical.nuprl
     examples/combinatory.nuprl
+    examples/compiler.nuprl
     examples/core.nuprl
     examples/cps.nuprl
     examples/denotational.nuprl
@@ -44,15 +48,21 @@ extra-source-files:
     examples/listprog.nuprl
     examples/lists.nuprl
     examples/logic.nuprl
+    examples/monads.nuprl
     examples/nd.nuprl
     examples/quotients.nuprl
     examples/regular.nuprl
     examples/sets.nuprl
+    examples/subtyping.nuprl
 data-files:
+    examples/abstract_interp.nuprl
+    examples/bags.nuprl
+    examples/bisimulation.nuprl
     examples/cardinality.nuprl
     examples/choice.nuprl
     examples/classical.nuprl
     examples/combinatory.nuprl
+    examples/compiler.nuprl
     examples/core.nuprl
     examples/cps.nuprl
     examples/denotational.nuprl
@@ -66,10 +76,12 @@ data-files:
     examples/listprog.nuprl
     examples/lists.nuprl
     examples/logic.nuprl
+    examples/monads.nuprl
     examples/nd.nuprl
     examples/quotients.nuprl
     examples/regular.nuprl
     examples/sets.nuprl
+    examples/subtyping.nuprl
 
 source-repository head
   type: git
